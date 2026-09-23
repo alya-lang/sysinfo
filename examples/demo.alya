@@ -70,8 +70,14 @@ function main()
     say ""
     say "--- 9. Detailed Report ---"
     say pkg::details()
+    say ""
+    say "--- 10. Extras ---"
+    say "Uptime:  " + str(pkg::uptime_days()) + "d / " + str(pkg::uptime_hours()) + "h / " + str(pkg::uptime_min()) + "m"
+    say "Env:     PATH has " + str(len(pkg::env_val("PATH", pkg::env_val("Path", "")))) + " chars"
+    let langs = pkg::system_langs()
+    say "Locale:  " + pkg::normalize_locale("tr_TR.UTF-8") + " -> chain head=" + langs[0]
     if pkg::load_is_known() == 1
-        say "Load averages available on this platform"
+        say "Load:    " + str(pkg::load_avg_1()) + " / " + str(pkg::load_avg_5()) + " / " + str(pkg::load_avg_15())
     else
         say "Load averages unavailable on this platform"
     end
