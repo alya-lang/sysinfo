@@ -1,0 +1,32 @@
+[package]
+name = "sysinfo"
+version = "0.1.0"
+alya-version = "0.0.19"
+entry = "src/lib.alya"
+description = "Cross-platform system information: locale, language, timezone and OS details for Alya"
+authors = ["Alya Language Contributors <https://github.com/alya-lang>"]
+license = "MIT"
+homepage = "https://github.com/alya-lang/alya"
+repository = "https://github.com/alya-lang/sysinfo"
+keywords = ["alya", "alya-lang", "package", "sysinfo", "locale", "system", "i18n", "c", "ffi"]
+
+[dependencies]
+
+[build]
+c-sources = ["c/sysinfo.c"]
+c-flags = ["-O2"]
+c-include-dirs = ["c"]
+links = "sysinfo"
+
+# [lint]
+# disabled_rules = []
+# exclude = []
+
+# [fmt]
+# exclude = []
+
+# [test]
+# exclude = []
+
+# [bench]
+# exclude = []
