@@ -116,6 +116,7 @@ function main()
     runner_assert_str_eq(r, pkg::format_utc_offset(-330), "UTC-5:30", "format_utc_offset negative half hour")
     let fixed_mem = pkg::make_mem_info(2147483648, 1073741824, 1073741824, 536870912)
     runner_assert_str_eq(r, pkg::format_mem(fixed_mem), "RAM 1024/2048 MB (50%)", "format_mem fixed vector")
+    runner_assert_str_eq(r, pkg::format_mem(pkg::make_mem_info(2147483648, -1, -1, -1)), "RAM 2048 MB", "format_mem unknown avail")
     runner_assert_str_eq(r, pkg::format_swap(fixed_mem), "Swap 512/1024 MB (50%)", "format_swap fixed vector")
     runner_assert_eq(r, fixed_mem.swap_mb(), 1024, "swap_mb fixed vector")
 
@@ -218,6 +219,7 @@ function main()
         runner_assert_true(r, pkg::load_avg_5() >= 0.0, "load_avg_5 is non-negative on POSIX")
         runner_assert_true(r, pkg::load_avg_15() >= 0.0, "load_avg_15 is non-negative on POSIX")
     end
+    runner_assert_eq(r, len(pkg::load()), 3, "load() returns 3 entries")
     runner_assert_true(r, pkg::uptime_days() >= 0, "uptime_days is non-negative")
 
     # ═══════════════════════════════════════════════════════════

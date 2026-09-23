@@ -77,6 +77,9 @@ pub function format_mem(info: MemInfo) -> string
         return "RAM unknown"
     end
     let total = info.total_mb()
+    if info.avail_mb() < 0
+        return "RAM {total} MB"
+    end
     let avail = info.avail_mb()
     let used = total - avail
     let pct = info.used_percent()
