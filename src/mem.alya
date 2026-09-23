@@ -16,10 +16,22 @@ pub function mem_avail_bytes() -> int
     return sysinfo_mem_avail()
 end
 
+## Returns total swap/pagefile in bytes (-1 when unavailable).
+pub function swap_total_bytes() -> int
+    return sysinfo_swap_total()
+end
+
+## Returns available swap/pagefile in bytes (-1 when unavailable).
+pub function swap_avail_bytes() -> int
+    return sysinfo_swap_avail()
+end
+
 ## Collects the current memory figures into a MemInfo record.
 pub function mem_info() -> MemInfo
     return MemInfo {
         total_bytes: mem_total_bytes(),
-        avail_bytes: mem_avail_bytes()
+        avail_bytes: mem_avail_bytes(),
+        swap_total_bytes: swap_total_bytes(),
+        swap_avail_bytes: swap_avail_bytes()
     }
 end

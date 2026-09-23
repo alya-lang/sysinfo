@@ -1,7 +1,7 @@
 ## sysinfo Library Facade
 ##
 ## Cross-platform system information for Alya: OS, CPU, memory, disk,
-## host, timezone, uptime, and locale.
+## host, timezone, power, process, environment, load, and locale.
 ## Part of the Alya Language package ecosystem (https://github.com/alya-lang).
 
 import "./types.alya"
@@ -13,6 +13,10 @@ import "./mem.alya"
 import "./disk.alya"
 import "./host.alya"
 import "./timezone.alya"
+import "./power.alya"
+import "./proc.alya"
+import "./env_info.alya"
+import "./load.alya"
 import "./uptime.alya"
 import "./core/formatter.alya"
 
@@ -24,7 +28,7 @@ import "./core/formatter.alya"
 ##
 ## ### Returns
 ## Populated `SystemInfo` with OS, CPU, memory, disk, host, timezone,
-## uptime, and locale details.
+## power, process, uptime, and locale details.
 ##
 ## ### Examples
 ## ```alya
@@ -39,6 +43,8 @@ pub function system_info() -> SystemInfo
         disk: disk_usage(),
         host: host_info(),
         tz: tz_info(),
+        power: power_info(),
+        proc: proc_info(),
         uptime_sec: uptime_sec(),
         locale: system_locale_tag()
     }
@@ -47,9 +53,90 @@ end
 ## Returns a one-line human-readable system summary.
 ##
 ## ### Returns
-## Formatted snapshot string (OS, CPU, RAM, disk, host, TZ, uptime, locale).
+## Formatted snapshot string (OS, CPU, RAM, disk, host, TZ, power, uptime, locale).
 pub function summary() -> string
     return format_system_summary(system_info())
+end
+
+## Returns a detailed multi-line system report.
+##
+## ### Returns
+## One section per line (OS, CPU, memory, disk, host, time, power, proc, locale).
+pub function details() -> string
+    return format_system_details(system_info())
+end
+
+# ───────────────────────────────────────────────────────────────
+# OS / CPU / Memory / Disk Facade
+# ───────────────────────────────────────────────────────────────
+
+## Returns the kernel release ("NT 10.0.26200", "24.6.0", "6.8.0-52-generic").
+pub function kernel() -> string
+    return kernel_version()
+end
+
+## Returns 1 when running with elevated privileges (admin/root), else 0.
+pub function elevated() -> int
+    return is_elevated()
+end
+
+## Returns the CPU vendor ("GenuineIntel", "AuthenticAMD", "Apple", "" when unavailable).
+pub function cpu_vendor_name() -> string
+    return cpu_vendor()
+end
+
+## Returns total swap/pagefile in bytes (-1 when unavailable).
+pub function swap_total() -> int
+    return swap_total_bytes()
+end
+
+## Returns the filesystem type for path ("NTFS", "ext4", "" when unavailable).
+pub function disk_fs(path: string = "") -> string
+    return fs_type(path)
+end
+
+## Returns usage records for every mounted volume.
+pub function volumes() -> array
+    return mounts()
+end
+
+# ───────────────────────────────────────────────────────────────
+# Power / Process / Environment / Load Facade
+# ───────────────────────────────────────────────────────────────
+
+## Returns battery charge 0-100 (-1 when no battery or unknown).
+pub function battery() -> int
+    return battery_percent()
+end
+
+## Returns the current executable path ("" when unavailable).
+pub function exe_path() -> string
+    return proc_exe()
+end
+
+## Returns the whole environment as a name -> value map.
+pub function env_map() -> map
+    return env_all()
+end
+
+## Returns the number of environment variables.
+pub function env_len() -> int
+    return env_count()
+end
+
+## Returns an environment variable value, or default_val when unset.
+pub function env_val(key: string, default_val: string = "") -> string
+    return env_get(key, default_val)
+end
+
+## Returns [1min, 5min, 15min] load averages (-1.0 entries when unavailable).
+pub function load() -> array
+    return load_avg()
+end
+
+## Returns the Unix timestamp of the last boot (-1 when unavailable).
+pub function boot_time() -> int
+    return boot_unix()
 end
 
 # ───────────────────────────────────────────────────────────────

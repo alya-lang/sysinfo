@@ -3,6 +3,7 @@
 ## Disk usage reporting for Alya (byte counts, -1 when unavailable).
 ## Part of the Alya Language package ecosystem (https://github.com/alya-lang).
 
+import "std/str"
 import "./types.alya"
 import "./ffi.alya"
 
@@ -32,6 +33,15 @@ pub function disk_free_bytes(path: string = "") -> int
     return sysinfo_disk_free(p)
 end
 
+## Returns the filesystem type for path ("NTFS", "ext4", "" when unavailable).
+pub function fs_type(path: string = "") -> string
+    let p = path
+    if len(p) == 0
+        p = disk_default_path()
+    end
+    return sysinfo_fs_type(p)
+end
+
 ## Collects disk usage for path into a DiskUsage record.
 pub function disk_usage(path: string = "") -> DiskUsage
     let p = path
@@ -40,7 +50,40 @@ pub function disk_usage(path: string = "") -> DiskUsage
     end
     return DiskUsage {
         path: p,
+        fstype: sysinfo_fs_type(p),
         total_bytes: sysinfo_disk_total(p),
         free_bytes: sysinfo_disk_free(p)
     }
+end
+
+## Returns the number of mounted volumes.
+pub function mount_count() -> int
+    let n = sysinfo_mount_count()
+    if n < 0
+        return 0
+    end
+    return n
+end
+
+## Returns usage records for every mounted volume.
+pub function mounts() -> array
+    let out = []
+    let n = mount_count()
+    let i = 0
+    while i < n
+        let entry = sysinfo_mount_at(i)
+        let sep = index_of(entry, "|")
+        if sep > 0
+            let mnt = entry[..sep]
+            let fst = entry[(sep + 1)..]
+            out.push(DiskUsage {
+                path: mnt,
+                fstype: fst,
+                total_bytes: sysinfo_disk_total(mnt),
+                free_bytes: sysinfo_disk_free(mnt)
+            })
+        end
+        i += 1
+    end
+    return out
 end

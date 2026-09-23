@@ -28,3 +28,8 @@ end
 pub function uptime_days() -> int
     return uptime_sec() / 86400
 end
+
+## Returns the Unix timestamp of the last boot (-1 when unavailable).
+pub function boot_unix() -> int
+    return sysinfo_boot_unix()
+end

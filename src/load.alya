@@ -1,0 +1,34 @@
+## # sysinfo/load
+##
+## System load average reporting for Alya (POSIX only, -1.0 elsewhere).
+## Part of the Alya Language package ecosystem (https://github.com/alya-lang).
+
+import "./ffi.alya"
+
+## Returns the 1-minute load average (-1.0 when unavailable).
+pub function load_avg_1() -> float
+    return sysinfo_load_1()
+end
+
+## Returns the 5-minute load average (-1.0 when unavailable).
+pub function load_avg_5() -> float
+    return sysinfo_load_5()
+end
+
+## Returns the 15-minute load average (-1.0 when unavailable).
+pub function load_avg_15() -> float
+    return sysinfo_load_15()
+end
+
+## Returns 1 when load averages are available, 0 otherwise.
+pub function load_is_known() -> int
+    if sysinfo_load_1() < 0.0
+        return 0
+    end
+    return 1
+end
+
+## Returns [1min, 5min, 15min] load averages.
+pub function load_avg() -> array
+    return [load_avg_1(), load_avg_5(), load_avg_15()]
+end

@@ -1,0 +1,47 @@
+## # sysinfo/env_info
+##
+## Full process environment access for Alya.
+## Part of the Alya Language package ecosystem (https://github.com/alya-lang).
+
+import "std/str"
+import "./ffi.alya"
+
+## Returns the whole environment as a name -> value map.
+pub function env_all() -> map
+    let m = map()
+    let block = sysinfo_env_block()
+    if len(block) == 0
+        return m
+    end
+    let lines = split(block, "\n")
+    for line in lines
+        if len(line) == 0
+            continue
+        end
+        let eq = index_of(line, "=")
+        if eq > 0
+            let k = line[..eq]
+            let v = line[(eq + 1)..]
+            m[k] = v
+        end
+    end
+    return m
+end
+
+## Returns the number of environment variables.
+pub function env_count() -> int
+    return len(keys(env_all()))
+end
+
+## Returns the value of an environment variable, or default_val when unset.
+pub function env_get(key: string, default_val: string = "") -> string
+    let m = env_all()
+    if key in m
+        let v = m[key]
+        if v is null
+            return default_val
+        end
+        return v
+    end
+    return default_val
+end

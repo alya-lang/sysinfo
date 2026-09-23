@@ -13,10 +13,16 @@
 ## - `name`: Canonical OS id (`"windows"`, `"linux"`, `"macos"`).
 ## - `version`: Human-readable version (`"Windows 11 (10.0.26100)"`, `"Ubuntu 24.04.1 LTS"`).
 ## - `arch`: Canonical CPU arch id (`"x64"`, `"x86"`, `"arm64"`).
+## - `kernel`: Kernel release (`"NT 10.0.26200"`, `"24.6.0"`, `"6.8.0-52-generic"`).
+## - `distro_id`: Distribution id from `/etc/os-release` (`"ubuntu"`, "" elsewhere).
+## - `distro_version`: Distribution version (`"24.04"`, "" elsewhere).
 pub struct OsInfo
     name: string,
     version: string,
-    arch: string
+    arch: string,
+    kernel: string,
+    distro_id: string,
+    distro_version: string
 end
 
 ## CPU details.
@@ -24,11 +30,17 @@ end
 ## ### Fields
 ## - `arch`: Canonical CPU arch id.
 ## - `cores`: Logical processor count (>= 1).
+## - `physical_cores`: Physical core count (>= 1, -1 when unavailable).
+## - `freq_mhz`: Base frequency in MHz (-1 when unavailable).
 ## - `model`: Human-readable CPU model ("" when unavailable).
+## - `vendor`: CPU vendor (`"GenuineIntel"`, `"AuthenticAMD"`, `"Apple"`, "" when unavailable).
 pub struct CpuInfo
     arch: string,
     cores: int,
-    model: string
+    physical_cores: int,
+    freq_mhz: int,
+    model: string,
+    vendor: string
 end
 
 ## Memory details (byte counts, -1 when unavailable).
@@ -36,19 +48,25 @@ end
 ## ### Fields
 ## - `total_bytes`: Total physical RAM in bytes.
 ## - `avail_bytes`: Available physical RAM in bytes.
+## - `swap_total_bytes`: Total swap/pagefile in bytes.
+## - `swap_avail_bytes`: Available swap/pagefile in bytes.
 pub struct MemInfo
     total_bytes: int,
-    avail_bytes: int
+    avail_bytes: int,
+    swap_total_bytes: int,
+    swap_avail_bytes: int
 end
 
 ## Disk usage for a single path (byte counts, -1 when unavailable).
 ##
 ## ### Fields
 ## - `path`: Queried mount path (`"C:/"`, `"/"`).
+## - `fstype`: Filesystem type (`"NTFS"`, `"ext4"`, "" when unavailable).
 ## - `total_bytes`: Filesystem total size in bytes.
 ## - `free_bytes`: Filesystem available size in bytes.
 pub struct DiskUsage
     path: string,
+    fstype: string,
     total_bytes: int,
     free_bytes: int
 end
@@ -73,6 +91,26 @@ pub struct TzInfo
     offset_min: int
 end
 
+## Power details (-1 when unavailable, e.g. desktops without battery).
+##
+## ### Fields
+## - `battery_percent`: Battery charge 0-100.
+## - `on_ac`: 1 on AC power, 0 discharging.
+pub struct PowerInfo
+    battery_percent: int,
+    on_ac: int
+end
+
+## Current process details.
+##
+## ### Fields
+## - `pid`: Current process id.
+## - `exe`: Current executable path ("" when unavailable).
+pub struct ProcInfo
+    pid: int,
+    exe: string
+end
+
 ## System locale record.
 ##
 ## ### Fields
@@ -94,6 +132,8 @@ end
 ## - `disk`: Disk usage for the default path.
 ## - `host`: Host identity.
 ## - `tz`: Timezone details.
+## - `power`: Power details.
+## - `proc`: Current process details.
 ## - `uptime_sec`: Seconds since boot (0 when unavailable).
 ## - `locale`: Best system locale tag.
 pub struct SystemInfo
@@ -103,6 +143,8 @@ pub struct SystemInfo
     disk: DiskUsage,
     host: HostInfo,
     tz: TzInfo,
+    power: PowerInfo,
+    proc: ProcInfo,
     uptime_sec: int,
     locale: string
 end
@@ -144,6 +186,23 @@ pub function MemInfo.is_known(self: MemInfo) -> int
     return 0
 end
 
+## Returns swap total in whole megabytes (-1 when unavailable).
+pub function MemInfo.swap_mb(self: MemInfo) -> int
+    if self.swap_total_bytes < 0
+        return -1
+    end
+    return self.swap_total_bytes / 1048576
+end
+
+## Returns used swap percentage 0-100 (-1 when unavailable).
+pub function MemInfo.swap_used_percent(self: MemInfo) -> int
+    if self.swap_total_bytes <= 0 or self.swap_avail_bytes < 0
+        return -1
+    end
+    let used = self.swap_total_bytes - self.swap_avail_bytes
+    return (used * 100) / self.swap_total_bytes
+end
+
 # ───────────────────────────────────────────────────────────────
 # Struct Methods: DiskUsage
 # ───────────────────────────────────────────────────────────────
@@ -168,6 +227,26 @@ end
 ## Returns 1 when disk figures are known, 0 otherwise.
 pub function DiskUsage.is_known(self: DiskUsage) -> int
     if self.total_bytes > 0
+        return 1
+    end
+    return 0
+end
+
+# ───────────────────────────────────────────────────────────────
+# Struct Methods: PowerInfo
+# ───────────────────────────────────────────────────────────────
+
+## Returns 1 when a battery is present, 0 otherwise.
+pub function PowerInfo.has_battery(self: PowerInfo) -> int
+    if self.battery_percent >= 0
+        return 1
+    end
+    return 0
+end
+
+## Returns 1 when on AC power, 0 otherwise (unknown counts as 0).
+pub function PowerInfo.is_on_ac(self: PowerInfo) -> int
+    if self.on_ac == 1
         return 1
     end
     return 0

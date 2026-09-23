@@ -15,4 +15,24 @@ extern "C" from "sysinfo"
     function sysinfo_disk_free(path: str) -> i64
     function sysinfo_tz_name() -> str
     function sysinfo_utc_offset_min() -> i32
+    function sysinfo_kernel_version() -> str
+    function sysinfo_distro_id() -> str
+    function sysinfo_distro_version() -> str
+    function sysinfo_cpu_physical() -> i32
+    function sysinfo_cpu_freq_mhz() -> i64
+    function sysinfo_cpu_vendor() -> str
+    function sysinfo_swap_total() -> i64
+    function sysinfo_swap_avail() -> i64
+    function sysinfo_battery_percent() -> i32
+    function sysinfo_on_ac() -> i32
+    function sysinfo_exe_path() -> str
+    function sysinfo_env_block() -> str
+    function sysinfo_boot_unix() -> i64
+    function sysinfo_load_1() -> f64
+    function sysinfo_load_5() -> f64
+    function sysinfo_load_15() -> f64
+    function sysinfo_mount_count() -> i32
+    function sysinfo_mount_at(index: i32) -> str
+    function sysinfo_fs_type(path: str) -> str
+    function sysinfo_is_elevated() -> i32
 end

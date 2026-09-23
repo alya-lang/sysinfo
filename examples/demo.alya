@@ -17,7 +17,9 @@ function main()
     say "--- 2. CPU ---"
     let cpu = pkg::cpu_info()
     say "Arch:    " + cpu.arch
-    say "Cores:   " + str(cpu.cores)
+    say "Cores:   " + str(cpu.cores) + " logical / " + str(cpu.physical_cores) + " physical"
+    say "Freq:    " + str(cpu.freq_mhz) + " MHz"
+    say "Vendor:  " + cpu.vendor
     say "Model:   " + cpu.model
     say ""
 
@@ -25,31 +27,41 @@ function main()
     let mem = pkg::mem_info()
     say "Total:   " + pkg::format_bytes(mem.total_bytes)
     say "Avail:   " + pkg::format_bytes(mem.avail_bytes)
+    say "Swap:    " + pkg::format_bytes(mem.swap_total_bytes)
     say "Summary: " + pkg::format_mem(mem)
     say ""
 
     say "--- 4. Disk ---"
     let du = pkg::disk_usage()
-    say "Path:    " + du.path
+    say "Path:    " + du.path + " [" + du.fstype + "]"
     say "Summary: " + pkg::format_disk(du)
+    say "Mounts:  " + str(len(pkg::volumes()))
     say ""
 
     say "--- 5. Host & Timezone ---"
     let host = pkg::host_info()
     say "Host:    " + host.hostname
-    say "User:    " + host.username
+    say "User:    " + host.username + " (elevated=" + str(pkg::elevated()) + ")"
     let tz = pkg::tz_info()
     say "TZ:      " + tz.name + " (" + pkg::format_utc_offset(tz.offset_min) + ")"
-    say "Uptime:  " + pkg::format_duration(pkg::uptime_sec())
+    say "Uptime:  " + pkg::format_duration(pkg::uptime_sec()) + " (boot " + str(pkg::boot_time()) + ")"
+    say "Power:   " + pkg::format_power(pkg::power_info())
+    say "Proc:    " + str(pkg::proc_pid()) + " " + pkg::exe_path()
+    say "Env:     " + str(pkg::env_len()) + " vars"
     say ""
 
-    say "--- 6. Locale ---"
+    say "--- 6. OS Detail ---"
+    say "Kernel:  " + pkg::kernel()
+    say "Distro:  " + pkg::distro_id() + " " + pkg::distro_version()
+    say ""
+
+    say "--- 7. Locale ---"
     say "Lang:    " + pkg::system_lang()
     let loc = pkg::locale_info()
     say "BCP47:   " + loc.bcp47 + " (lang=" + loc.lang + ", region=" + loc.region + ")"
     say ""
 
-    say "--- 7. Full Snapshot ---"
+    say "--- 8. Full Snapshot ---"
     say pkg::summary()
     say ""
     say "Done!"

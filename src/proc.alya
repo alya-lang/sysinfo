@@ -1,0 +1,25 @@
+## # sysinfo/proc
+##
+## Current process details for Alya.
+## Part of the Alya Language package ecosystem (https://github.com/alya-lang).
+
+import "./types.alya"
+import "./ffi.alya"
+
+## Returns the current process id.
+pub function proc_pid() -> int
+    return __native_get_pid()
+end
+
+## Returns the current executable path ("" when unavailable).
+pub function proc_exe() -> string
+    return sysinfo_exe_path()
+end
+
+## Collects current process details into a ProcInfo record.
+pub function proc_info() -> ProcInfo
+    return ProcInfo {
+        pid: proc_pid(),
+        exe: proc_exe()
+    }
+end

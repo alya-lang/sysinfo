@@ -1,0 +1,25 @@
+## # sysinfo/power
+##
+## Power and battery reporting for Alya (-1 when unavailable).
+## Part of the Alya Language package ecosystem (https://github.com/alya-lang).
+
+import "./types.alya"
+import "./ffi.alya"
+
+## Returns battery charge 0-100 (-1 when no battery or unknown).
+pub function battery_percent() -> int
+    return sysinfo_battery_percent()
+end
+
+## Returns 1 on AC power, 0 discharging, -1 when unknown.
+pub function on_ac() -> int
+    return sysinfo_on_ac()
+end
+
+## Collects power details into a PowerInfo record.
+pub function power_info() -> PowerInfo
+    return PowerInfo {
+        battery_percent: battery_percent(),
+        on_ac: on_ac()
+    }
+end

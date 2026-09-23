@@ -20,9 +20,28 @@ pub function cpu_cores() -> int
     return 1
 end
 
+## Returns the physical core count (>= 1, falls back to logical count).
+pub function cpu_physical() -> int
+    let n = sysinfo_cpu_physical()
+    if n > 0
+        return n
+    end
+    return cpu_cores()
+end
+
+## Returns the base CPU frequency in MHz (-1 when unavailable).
+pub function cpu_freq_mhz() -> int
+    return sysinfo_cpu_freq_mhz()
+end
+
 ## Returns the human-readable CPU model ("" when unavailable).
 pub function cpu_model() -> string
     return sysinfo_cpu_model()
+end
+
+## Returns the CPU vendor ("GenuineIntel", "AuthenticAMD", "Apple", "" when unavailable).
+pub function cpu_vendor() -> string
+    return sysinfo_cpu_vendor()
 end
 
 ## Collects the current CPU details into a CpuInfo record.
@@ -30,6 +49,9 @@ pub function cpu_info() -> CpuInfo
     return CpuInfo {
         arch: cpu_arch(),
         cores: cpu_cores(),
-        model: cpu_model()
+        physical_cores: cpu_physical(),
+        freq_mhz: cpu_freq_mhz(),
+        model: cpu_model(),
+        vendor: cpu_vendor()
     }
 end

@@ -25,6 +25,26 @@ pub function os_arch() -> string
     return target_arch()
 end
 
+## Returns the kernel release ("NT 10.0.26200", "24.6.0", "6.8.0-52-generic").
+pub function kernel_version() -> string
+    return sysinfo_kernel_version()
+end
+
+## Returns the distribution id ("ubuntu", "debian", "" on Windows/macOS).
+pub function distro_id() -> string
+    return sysinfo_distro_id()
+end
+
+## Returns the distribution version ("24.04", "" on Windows/macOS).
+pub function distro_version() -> string
+    return sysinfo_distro_version()
+end
+
+## Returns 1 when running with elevated privileges (admin/root), else 0.
+pub function is_elevated() -> int
+    return sysinfo_is_elevated()
+end
+
 ## Returns 1 on Windows, else 0.
 pub function os_is_windows() -> int
     if target_os() == "windows"
@@ -54,6 +74,9 @@ pub function os_info() -> OsInfo
     return OsInfo {
         name: os_name(),
         version: os_version(),
-        arch: os_arch()
+        arch: os_arch(),
+        kernel: kernel_version(),
+        distro_id: distro_id(),
+        distro_version: distro_version()
     }
 end

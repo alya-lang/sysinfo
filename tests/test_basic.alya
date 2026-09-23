@@ -108,8 +108,76 @@ function main()
     runner_assert_true(r, sys.cpu.cores >= 1, "system_info().cpu.cores >= 1")
     runner_assert_true(r, sys.mem.total_bytes > 0, "system_info().mem.total_bytes is positive")
     runner_assert_true(r, len(pkg::summary()) > 0, "summary() returns non-empty string")
+    runner_assert_true(r, len(pkg::details()) > 0, "details() returns non-empty string")
 
-    # 11. Native C FFI verification
+    # ═══════════════════════════════════════════════════════════
+    # 11. OS detail (kernel, distro, privileges)
+    # ═══════════════════════════════════════════════════════════
+    runner_assert_true(r, len(pkg::kernel()) > 0, "kernel() returns non-empty release")
+    let el = pkg::elevated()
+    runner_assert_true(r, el == 0 or el == 1, "elevated() returns 0 or 1")
+    let is_linux = pkg::os_name() == "linux"
+    if is_linux
+        runner_assert_true(r, len(pkg::distro_id()) > 0, "distro_id is non-empty on Linux")
+    end
+
+    # ═══════════════════════════════════════════════════════════
+    # 12. CPU detail (physical cores, frequency, vendor)
+    # ═══════════════════════════════════════════════════════════
+    let phys = pkg::cpu_physical()
+    runner_assert_true(r, phys >= 1, "cpu_physical returns at least 1")
+    runner_assert_true(r, phys <= pkg::cpu_cores(), "physical cores do not exceed logical cores")
+    runner_assert_true(r, pkg::cpu_freq_mhz() >= -1, "cpu_freq_mhz returns -1 or positive")
+    runner_assert_true(r, len(pkg::format_cpu(pkg::cpu_info())) > 0, "format_cpu returns non-empty string")
+
+    # ═══════════════════════════════════════════════════════════
+    # 13. Swap memory
+    # ═══════════════════════════════════════════════════════════
+    let swap_total = pkg::swap_total()
+    runner_assert_true(r, swap_total >= -1, "swap_total returns -1 or non-negative")
+    let swap_pct = pkg::mem_info().swap_used_percent()
+    runner_assert_true(r, swap_pct >= -1, "swap_used_percent returns -1 or non-negative")
+    runner_assert_true(r, swap_pct <= 100, "swap_used_percent does not exceed 100")
+
+    # ═══════════════════════════════════════════════════════════
+    # 14. Filesystem type & mounted volumes
+    # ═══════════════════════════════════════════════════════════
+    let vols = pkg::volumes()
+    runner_assert_true(r, len(vols) >= 1, "volumes() lists at least one mount")
+    runner_assert_true(r, len(vols[0].path) > 0, "first volume has a mount path")
+
+    # ═══════════════════════════════════════════════════════════
+    # 15. Power & battery
+    # ═══════════════════════════════════════════════════════════
+    let batt = pkg::battery()
+    runner_assert_true(r, batt >= -1, "battery returns -1 or non-negative")
+    runner_assert_true(r, batt <= 100, "battery does not exceed 100")
+    let ac = pkg::on_ac()
+    runner_assert_true(r, ac >= -1, "on_ac returns -1, 0 or 1")
+    runner_assert_true(r, ac <= 1, "on_ac does not exceed 1")
+    runner_assert_true(r, len(pkg::format_power(pkg::power_info())) > 0, "format_power returns non-empty string")
+
+    # ═══════════════════════════════════════════════════════════
+    # 16. Process, boot time & load average
+    # ═══════════════════════════════════════════════════════════
+    runner_assert_true(r, pkg::proc_pid() > 0, "proc_pid is positive")
+    runner_assert_true(r, len(pkg::exe_path()) > 0, "exe_path returns non-empty string")
+    runner_assert_true(r, pkg::boot_time() > 0, "boot_time returns positive Unix timestamp")
+    let is_windows = pkg::os_name() == "windows"
+    if is_windows
+        runner_assert_true(r, pkg::load_avg_1() < 0.0, "load average is unavailable on Windows")
+    else
+        runner_assert_true(r, pkg::load_avg_1() >= 0.0, "load_avg_1 is non-negative on POSIX")
+    end
+
+    # ═══════════════════════════════════════════════════════════
+    # 17. Full environment map
+    # ═══════════════════════════════════════════════════════════
+    runner_assert_true(r, pkg::env_len() > 0, "env_len returns positive count")
+    let path_val = pkg::env_val("PATH", pkg::env_val("Path", ""))
+    runner_assert_true(r, len(path_val) > 0, "PATH/Path is present in environment")
+
+    # 18. Native C FFI verification
     let c_sum = pkg::c_add(10, 32)
     runner_assert_eq(r, c_sum, 42, "pkg::c_add executes bundled C code")
 

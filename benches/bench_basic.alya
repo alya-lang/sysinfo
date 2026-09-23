@@ -52,6 +52,24 @@ function main()
     end
     bench_stop(runner, "summary() 1k calls")
 
+    # Bench 6: mounts() volume enumeration — 1k iterations
+    bench_start(runner, 1000)
+    let v = 0
+    while v < 1000
+        pkg::volumes()
+        v += 1
+    end
+    bench_stop(runner, "volumes() 1k calls")
+
+    # Bench 7: env_all() environment parse — 1k iterations
+    bench_start(runner, 1000)
+    let e = 0
+    while e < 1000
+        pkg::env_map()
+        e += 1
+    end
+    bench_stop(runner, "env_map() 1k calls")
+
     bench_summary(runner)
 end
 
