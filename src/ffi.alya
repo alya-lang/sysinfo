@@ -4,4 +4,15 @@
 extern "C" from "sysinfo"
     function alya_sysinfo_add(a: i32, b: i32) -> i32
     function sysinfo_native_locale() -> str
+    function sysinfo_cpu_cores() -> i32
+    function sysinfo_mem_total() -> i64
+    function sysinfo_mem_avail() -> i64
+    function sysinfo_os_version() -> str
+    function sysinfo_cpu_model() -> str
+    function sysinfo_host_name() -> str
+    function sysinfo_uptime_sec() -> i64
+    function sysinfo_disk_total(path: str) -> i64
+    function sysinfo_disk_free(path: str) -> i64
+    function sysinfo_tz_name() -> str
+    function sysinfo_utc_offset_min() -> i32
 end

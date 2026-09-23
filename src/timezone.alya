@@ -1,0 +1,29 @@
+## # sysinfo/timezone
+##
+## System timezone reporting for Alya.
+## Part of the Alya Language package ecosystem (https://github.com/alya-lang).
+
+import "./types.alya"
+import "./ffi.alya"
+
+## Returns the system timezone name ("" when unavailable).
+pub function tz_name() -> string
+    let n = sysinfo_tz_name()
+    if len(n) > 0
+        return n
+    end
+    return get_env("TZ")
+end
+
+## Returns the UTC offset in minutes (UTC+3 -> 180, 0 when unavailable).
+pub function utc_offset_min() -> int
+    return sysinfo_utc_offset_min()
+end
+
+## Collects timezone details into a TzInfo record.
+pub function tz_info() -> TzInfo
+    return TzInfo {
+        name: tz_name(),
+        offset_min: utc_offset_min()
+    }
+end

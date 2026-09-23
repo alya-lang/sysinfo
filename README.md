@@ -11,14 +11,16 @@ Cross-platform system information: locale, language, timezone and OS details for
 
 ## 🌟 Features
 
-- ⚡ **Lightweight & High Performance**: Minimal memory overhead, zero runtime bloat, and fast native execution
-- 🧩 **Modular Architecture**: Layered multi-module design featuring a clean public facade (`src/lib.alya`), rich data models (`src/types.alya`), and encapsulated core formatters (`src/core/formatter.alya`)
-- 🔒 **Public/Private Visibility (`pub`)**: Fine-grained export control with `pub` for public functions, structs, and enums, keeping internal helper functions private and encapsulated
-- 🎭 **Structural Duck Typing & Interfaces**: Dynamic interface dispatch (`Summarizable`, `Describable`) without brittle inheritance hierarchies
-- 📦 **Rich Domain Models & Enums**: Idiomatic `enum` types (`SysinfoStatus`, `SysinfoPriority`, `SysinfoStyle`) and typed data containers (`SysinfoConfig`, `SysinfoResult`, `SysinfoStats`)
-- 🎯 **Advanced Pattern Matching**: Clean branching with `when` expressions, range matching, and condition guards
-- 🛡️ **Defensive Result Pattern**: Structured error handling and outcome encapsulation with `ok_result` and `error_result`
-- 🧪 **Enterprise Test & Benchmark Suite**: 100% test coverage with standard assertions (`std/test`) and micro-benchmarking (`std/test` bench runner)
+- 🖥️ **OS Identification**: Canonical platform id, human-readable version (Windows `RtlGetVersion`, macOS `kern.osproductversion`, Linux `/etc/os-release`), CPU arch
+- ⚡ **CPU Reporting**: Logical core count and model string per OS (Windows `GetSystemInfo`, macOS `sysctl`, Linux `/proc/cpuinfo`)
+- 🧠 **Memory Reporting**: Total/available RAM with MB and usage-percent helpers (Windows `GlobalMemoryStatusEx`, macOS `host_statistics64`, Linux `/proc/meminfo`)
+- 💾 **Disk Usage**: Total/free bytes per path (Windows `GetDiskFreeSpaceEx`, POSIX `statvfs`)
+- 🏠 **Host Identity**: Hostname and username via native API with env fallback
+- 🕐 **Timezone & Uptime**: System timezone name + UTC offset, seconds-since-boot
+- 🌍 **Locale Detection**: Native locale API with `LANGUAGE`/`LC_*`/`LANG` fallback, BCP-47 normalization, fallback chains
+- 🧩 **Modular Architecture**: Layered multi-module design with a clean public facade (`src/lib.alya`) and canonical models (`src/types.alya`)
+- 🔒 **Public/Private Visibility (`pub`)**: Fine-grained export control keeping internals encapsulated
+- 🧪 **Enterprise Test & Benchmark Suite**: Real-hardware assertions (`std/test`) and micro-benchmarking
 
 ---
 
@@ -31,17 +33,33 @@ sysinfo/
 ├── .gitignore              # Ecosystem standard ignore filters
 ├── .vscode/                # VS Code workspace settings, DAP launch configurations & tasks
 ├── alya.toml               # Package manifest with dependencies and optional [build]
-├── c/                      # (Optional) Native C sources for zero-dependency FFI packages
+├── c/                      # Native C sources for zero-dependency FFI packages
+│   ├── sysinfo.h           # Shared native declarations
+│   ├── sysinfo.c           # Common fallback engine
+│   ├── win32_locale.c      # Windows locale (GetUserDefaultLocaleName)
+│   ├── win32_sysinfo.c     # Windows OS/CPU/RAM/disk/TZ/uptime
+│   ├── cocoa_locale.c      # macOS locale (CFLocale)
+│   ├── cocoa_sysinfo.c     # macOS sysctl/VM/statvfs/timezone
+│   ├── linux_locale.c      # Linux locale (setlocale/env)
+│   └── linux_sysinfo.c     # Linux /proc/statvfs/timezone
 ├── src/
-│   ├── lib.alya            # Public API facade (pub exports, re-exports & pipeline runners)
-│   ├── types.alya          # Data models, pub enums, pub structs, and struct methods
-│   ├── ffi.alya            # (Optional) Native extern "C" declarations
+│   ├── lib.alya            # Public API facade (system_info, summary, locale)
+│   ├── types.alya          # Data models (OsInfo, CpuInfo, MemInfo, DiskUsage, ...)
+│   ├── ffi.alya            # Native extern "C" declarations
+│   ├── locale.alya         # Locale detection, normalization, fallback chains
+│   ├── os_info.alya        # OS name/version/arch
+│   ├── cpu.alya            # CPU cores/model
+│   ├── mem.alya            # Memory totals
+│   ├── disk.alya           # Disk usage per path
+│   ├── host.alya           # Hostname/username
+│   ├── timezone.alya       # Timezone name/offset
+│   ├── uptime.alya         # Uptime counters
 │   └── core/               # Subdirectory module hierarchy
-│       └── formatter.alya  # Domain formatting routines, salutation builders & pattern matchers
+│       └── formatter.alya  # format_bytes, format_duration, format_system_summary
 ├── examples/
-│   └── demo.alya           # Comprehensive runnable walkthrough of all package capabilities
+│   └── demo.alya           # Runnable walkthrough of all package capabilities
 ├── tests/
-│   └── test_basic.alya     # Automated test suite with 100% feature coverage
+│   └── test_basic.alya     # Automated test suite (real-hardware assertions)
 └── benches/
     └── bench_basic.alya    # Micro-benchmarks measuring performance and throughput
 ```
@@ -75,18 +93,15 @@ alya install
 import "sysinfo" as pkg
 
 function main()
-    # 1. Basic facade call with default parameter
-    let greeting = pkg::hello()
-    say f"Greeting:  {greeting}"
+    # 1. Full snapshot in one call
+    let info = pkg::system_info()
+    say f"OS:      {info.os.version}"
+    say f"CPU:     {info.cpu.model} x{info.cpu.cores}"
+    say f"Memory:  {pkg::format_mem(info.mem)}"
+    say f"Locale:  {info.locale}"
 
-    # 2. Struct configuration with priority, style, and methods
-    let cfg = pkg::new_config("Community", 5, pkg::SysinfoPriority.High, pkg::SysinfoStyle.Formal)
-    say f"Summary:   {cfg.summary()}"
-    say f"Formatted: {pkg::core_format_custom(cfg)}"
-
-    # 3. Processing pipeline returning Result model
-    let res = pkg::process("Analytics", 3, pkg::SysinfoPriority.Critical)
-    say f"Outcome:   {res.message}"
+    # 2. One-line summary
+    say pkg::summary()
 end
 
 main()
@@ -98,44 +113,49 @@ main()
 
 | Symbol | Visibility | Description |
 |---|---|---|
-| `hello(name = "World")` | `pub function` | Returns a formatted greeting string. Defaults to `"World"` if null or empty. |
-| `new_config(name, count, priority, style)` | `pub function` | Factory constructing a `SysinfoConfig` with sensible defaults. |
-| `make_config(name, count, priority, style, enabled, tags)` | `pub function` | Full constructor for `SysinfoConfig`. |
-| `process(label, count, priority)` | `pub function` | Runs processing pipeline, returning an `ok_result` `SysinfoResult`. |
-| `process_batch(labels)` | `pub function` | Formats an array of labels in batch, returning an array of strings. |
-| `ok_result(value, message)` | `pub function` | Constructs a successful `SysinfoResult` container (`status = 0`). |
-| `error_result(message, errors)` | `pub function` | Constructs a failed `SysinfoResult` container (`status = 1`). |
-| `make_stats(total, passed, failed, skipped)` | `pub function` | Constructs a `SysinfoStats` metrics record. |
-| `format_summary(cfg)` | `pub function` | Formats summary of a config instance (satisfies `Summarizable`). |
-| `format_description(cfg)` | `pub function` | Formats description of a config instance (satisfies `Describable`). |
-| `format_config(config)` | `pub function` | Multi-field formatter producing descriptive overview of a `SysinfoConfig`. |
-| `format_result(result)` | `pub function` | Formats a `SysinfoResult` into `[OK]` or `[ERROR]` status line. |
-| `format_stats(stats)` | `pub function` | Formats total checked items and success rate percentage. |
-| `clamp(n, min_val, max_val)` | `pub function` | Clamps an integer value to the closed range `[min_val, max_val]`. |
-| `pluralize(n, singular, plural)` | `pub function` | Pattern-matches count to return singular or plural noun form. |
-| `repeat_string(label, count)` | `pub function` | Repeats a string into an array of `count` items. |
-| `Summarizable` | `pub interface` | Structural contract requiring `summary(self) -> string`. |
-| `Describable` | `pub interface` | Structural contract requiring `describe(self) -> string` and `is_valid(self) -> int`. |
-| `SysinfoStatus` | `pub enum` | Lifecycle status codes (`Pending = 0`, `Active = 1`, `Archived = 2`, `Error = 3`). |
-| `SysinfoPriority` | `pub enum` | Priority tiers (`Low = 0`, `Normal = 1`, `High = 2`, `Critical = 3`). |
-| `SysinfoStyle` | `pub enum` | Presentation styles (`Standard = 0`, `Formal = 1`, `Casual = 2`). |
-| `SysinfoConfig` | `pub struct` | Primary configuration model (`name`, `count`, `priority`, `style`, `enabled`, `tags`). |
-| `SysinfoConfig.summary()` | `pub method` | Single-line formatted summary (satisfies `Summarizable`). |
-| `SysinfoConfig.describe()` | `pub method` | Detailed multi-field description (satisfies `Describable`). |
-| `SysinfoConfig.is_valid()` | `pub method` | Validation guard returning 1 if valid, 0 otherwise. |
-| `SysinfoConfig.is_enabled()` | `pub method` | Returns 1 if active, 0 if disabled. |
-| `SysinfoConfig.with_name(new_name)` | `pub method` | Immutable copy with updated name. |
-| `SysinfoConfig.with_priority(new_prio)` | `pub method` | Immutable copy with updated priority tier. |
-| `SysinfoResult` | `pub struct` | Operation outcome model (`value`, `status`, `message`, `errors`). |
-| `SysinfoResult.is_ok()` | `pub method` | Returns 1 if successful (`status == 0`), 0 otherwise. |
-| `SysinfoResult.is_error()` | `pub method` | Returns 1 if error (`status != 0`), 0 otherwise. |
-| `SysinfoResult.unwrap_or(fallback)` | `pub method` | Returns message on success, or fallback on error. |
-| `SysinfoStats` | `pub struct` | Run statistics model (`total`, `passed`, `failed`, `skipped`). |
-| `SysinfoStats.total_checked()` | `pub method` | Sum of passed and failed items count. |
-| `SysinfoStats.success_rate()` | `pub method` | Computed percentage string (e.g. `"95%"`). |
+| `system_info()` | `pub function` | Collects a full `SystemInfo` snapshot (OS, CPU, RAM, disk, host, TZ, uptime, locale). |
+| `summary()` | `pub function` | Returns a one-line human-readable system summary. |
+| `os_name()` | `pub function` | Canonical OS id (`"windows"`, `"linux"`, `"macos"`). |
+| `os_version()` | `pub function` | Human-readable OS version with OS-id fallback. |
+| `os_arch()` | `pub function` | Canonical CPU arch id (`"x64"`, `"x86"`, `"arm64"`). |
+| `os_info()` | `pub function` | Collects an `OsInfo` record. |
+| `cpu_cores()` | `pub function` | Logical processor count (>= 1). |
+| `cpu_model()` | `pub function` | Human-readable CPU model ("" when unavailable). |
+| `cpu_info()` | `pub function` | Collects a `CpuInfo` record. |
+| `mem_total_bytes()` | `pub function` | Total physical RAM in bytes (-1 when unavailable). |
+| `mem_avail_bytes()` | `pub function` | Available physical RAM in bytes (-1 when unavailable). |
+| `mem_info()` | `pub function` | Collects a `MemInfo` record. |
+| `disk_total_bytes(path)` | `pub function` | Filesystem total bytes for path (-1 when unavailable). |
+| `disk_free_bytes(path)` | `pub function` | Filesystem free bytes for path (-1 when unavailable). |
+| `disk_usage(path)` | `pub function` | Collects a `DiskUsage` record (defaults to `disk_default_path()`). |
+| `host_name()` | `pub function` | Machine hostname via native API with env fallback. |
+| `host_user()` | `pub function` | Current user name via env. |
+| `host_info()` | `pub function` | Collects a `HostInfo` record. |
+| `tz_name()` | `pub function` | System timezone name with `TZ` fallback. |
+| `utc_offset_min()` | `pub function` | UTC offset in minutes (UTC+3 -> 180). |
+| `tz_info()` | `pub function` | Collects a `TzInfo` record. |
+| `uptime_sec()` | `pub function` | Seconds since boot (0 when unavailable). |
+| `system_lang(default)` | `pub function` | Best system locale tag (`"tr-TR"`), `"en"` fallback. |
+| `system_langs()` | `pub function` | Locale fallback chain (`["tr-TR", "tr", "en"]`). |
+| `normalize_locale(raw)` | `pub function` | Normalizes `"tr_TR.UTF-8"` to `"tr-TR"`. |
+| `locale_info()` | `pub function` | Collects a `LocaleInfo` record for the system locale. |
+| `format_bytes(n)` | `pub function` | Formats bytes as `"15 GB"`, `"512 MB"`, `"unknown"` when negative. |
+| `format_duration(sec)` | `pub function` | Formats seconds as `"3d 4h"`, `"5h 12m"`, `"45s"`. |
+| `format_utc_offset(min)` | `pub function` | Formats minutes as `"UTC+3"`, `"UTC"`. |
+| `format_mem(info)` | `pub function` | One-line RAM overview (`"RAM 13289/16127 MB (82%)"`). |
+| `format_disk(usage)` | `pub function` | One-line disk overview (`"C:/ 188/199 GB (94%)"`). |
+| `format_system_summary(info)` | `pub function` | Full multi-field snapshot line. |
+| `OsInfo` | `pub struct` | OS model (`name`, `version`, `arch`). |
+| `CpuInfo` | `pub struct` | CPU model (`arch`, `cores`, `model`). |
+| `MemInfo` | `pub struct` | Memory model (`total_bytes`, `avail_bytes`) + `total_mb()`, `avail_mb()`, `used_percent()`, `is_known()`. |
+| `DiskUsage` | `pub struct` | Disk model (`path`, `total_bytes`, `free_bytes`) + `used_bytes()`, `used_percent()`, `is_known()`. |
+| `HostInfo` | `pub struct` | Host model (`hostname`, `username`). |
+| `TzInfo` | `pub struct` | Timezone model (`name`, `offset_min`). |
+| `LocaleInfo` | `pub struct` | Locale model (`bcp47`, `lang`, `region`). |
+| `SystemInfo` | `pub struct` | Aggregated snapshot (`os`, `cpu`, `mem`, `disk`, `host`, `tz`, `uptime_sec`, `locale`). |
 
 > [!TIP]
-> **Internal Helpers & Documentation:** Public symbols are documented with `##` Markdown docstrings, enabling automatic API documentation generation via `alya doc`. Private functions such as `build_salutation` and `build_priority_label` in `src/core/formatter.alya` are not annotated with `pub` and remain encapsulated within their respective modules.
+> **Internal Helpers & Documentation:** Public symbols are documented with `##` Markdown docstrings, enabling automatic API documentation generation via `alya doc`. Private helpers remain encapsulated without `pub`.
 
 ---
 

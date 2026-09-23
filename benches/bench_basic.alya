@@ -7,71 +7,50 @@ import "../src/lib.alya" as pkg
 function main()
     let runner = bench_runner("sysinfo Micro-Benchmarks")
 
-    # Bench 1: hello() facade function — 100k iterations
-    bench_start(runner, 100000)
+    # Bench 1: system_info() aggregated snapshot — 1k iterations (FFI-heavy)
+    bench_start(runner, 1000)
     let i = 0
-    while i < 100000
-        pkg::hello("Alya")
+    while i < 1000
+        pkg::system_info()
         i += 1
     end
-    bench_stop(runner, "hello() 100k calls")
+    bench_stop(runner, "system_info() 1k calls")
 
-    # Bench 2: process() default call — 100k iterations
-    bench_start(runner, 100000)
+    # Bench 2: mem_info() — 10k iterations
+    bench_start(runner, 10000)
     let j = 0
-    while j < 100000
-        pkg::process()
+    while j < 10000
+        pkg::mem_info()
         j += 1
     end
-    bench_stop(runner, "process() default 100k calls")
+    bench_stop(runner, "mem_info() 10k calls")
 
-    # Bench 3: make_config + format_config — 50k iterations
-    bench_start(runner, 50000)
+    # Bench 3: normalize_locale() pure-Alya parsing — 100k iterations
+    bench_start(runner, 100000)
     let k = 0
-    while k < 50000
-        let cfg = pkg::new_config("bench", 1, pkg::SysinfoPriority.High, pkg::SysinfoStyle.Formal)
-        pkg::core_format_custom(cfg)
+    while k < 100000
+        pkg::normalize_locale("tr_TR.UTF-8")
         k += 1
     end
-    bench_stop(runner, "new_config + format_custom 50k calls")
+    bench_stop(runner, "normalize_locale() 100k calls")
 
-    # Bench 4: process_batch with 10-element array — 10k iterations
-    let labels = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
-    bench_start(runner, 10000)
+    # Bench 4: format_bytes() — 100k iterations
+    bench_start(runner, 100000)
     let m = 0
-    while m < 10000
-        pkg::process_batch(labels)
+    while m < 100000
+        pkg::format_bytes(17179869184)
         m += 1
     end
-    bench_stop(runner, "process_batch 10-item list 10k calls")
+    bench_stop(runner, "format_bytes() 100k calls")
 
-    # Bench 5: struct method cfg.summary() — 200k iterations
-    let summ_cfg = pkg::new_config("summary-bench", 5)
-    bench_start(runner, 200000)
+    # Bench 5: summary() full format pipeline — 1k iterations
+    bench_start(runner, 1000)
     let s = 0
-    while s < 200000
-        summ_cfg.summary()
+    while s < 1000
+        pkg::summary()
         s += 1
     end
-    bench_stop(runner, "cfg.summary() 200k calls")
-
-    # Bench 6: clamp() utility — 500k iterations
-    bench_start(runner, 500000)
-    let c = 0
-    while c < 500000
-        pkg::clamp(c, 0, 100)
-        c += 1
-    end
-    bench_stop(runner, "clamp() utility 500k calls")
-
-    # Bench 7: repeat_string() utility — 10k iterations
-    bench_start(runner, 10000)
-    let r = 0
-    while r < 10000
-        pkg::repeat_string("bench", 10)
-        r += 1
-    end
-    bench_stop(runner, "repeat_string() 10k calls")
+    bench_stop(runner, "summary() 1k calls")
 
     bench_summary(runner)
 end

@@ -1,0 +1,39 @@
+## # sysinfo/host
+##
+## Host identity for Alya (native API first, env fallback).
+## Part of the Alya Language package ecosystem (https://github.com/alya-lang).
+
+import "./types.alya"
+import "./ffi.alya"
+
+## Returns the machine hostname ("" when unavailable).
+pub function host_name() -> string
+    let n = sysinfo_host_name()
+    if len(n) > 0
+        return n
+    end
+    if target_os() == "windows"
+        return get_env("COMPUTERNAME")
+    end
+    return get_env("HOSTNAME")
+end
+
+## Returns the current user name ("" when unavailable).
+pub function host_user() -> string
+    if target_os() == "windows"
+        return get_env("USERNAME")
+    end
+    let u = get_env("USER")
+    if len(u) > 0
+        return u
+    end
+    return get_env("LOGNAME")
+end
+
+## Collects host identity into a HostInfo record.
+pub function host_info() -> HostInfo
+    return HostInfo {
+        hostname: host_name(),
+        username: host_user()
+    }
+end

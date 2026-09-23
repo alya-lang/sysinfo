@@ -1,0 +1,30 @@
+## # sysinfo/uptime
+##
+## System uptime reporting for Alya.
+## Part of the Alya Language package ecosystem (https://github.com/alya-lang).
+
+import "./ffi.alya"
+
+## Returns seconds since boot (0 when unavailable).
+pub function uptime_sec() -> int
+    let s = sysinfo_uptime_sec()
+    if s < 0
+        return 0
+    end
+    return s
+end
+
+## Returns whole minutes since boot.
+pub function uptime_min() -> int
+    return uptime_sec() / 60
+end
+
+## Returns whole hours since boot.
+pub function uptime_hours() -> int
+    return uptime_sec() / 3600
+end
+
+## Returns whole days since boot.
+pub function uptime_days() -> int
+    return uptime_sec() / 86400
+end

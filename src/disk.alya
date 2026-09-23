@@ -1,0 +1,46 @@
+## # sysinfo/disk
+##
+## Disk usage reporting for Alya (byte counts, -1 when unavailable).
+## Part of the Alya Language package ecosystem (https://github.com/alya-lang).
+
+import "./types.alya"
+import "./ffi.alya"
+
+## Returns the default query path ("C:/" on Windows, "/" elsewhere).
+pub function disk_default_path() -> string
+    return when target_os()
+        is "windows" => "C:/"
+        else => "/"
+    end
+end
+
+## Returns filesystem total size in bytes for path (-1 when unavailable).
+pub function disk_total_bytes(path: string = "") -> int
+    let p = path
+    if len(p) == 0
+        p = disk_default_path()
+    end
+    return sysinfo_disk_total(p)
+end
+
+## Returns filesystem available size in bytes for path (-1 when unavailable).
+pub function disk_free_bytes(path: string = "") -> int
+    let p = path
+    if len(p) == 0
+        p = disk_default_path()
+    end
+    return sysinfo_disk_free(p)
+end
+
+## Collects disk usage for path into a DiskUsage record.
+pub function disk_usage(path: string = "") -> DiskUsage
+    let p = path
+    if len(p) == 0
+        p = disk_default_path()
+    end
+    return DiskUsage {
+        path: p,
+        total_bytes: sysinfo_disk_total(p),
+        free_bytes: sysinfo_disk_free(p)
+    }
+end

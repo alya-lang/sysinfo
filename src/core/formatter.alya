@@ -1,228 +1,100 @@
 ## sysinfo Core Formatting Engine
 ##
 ## Part of the Alya Language package ecosystem (https://github.com/alya-lang).
-## Contains domain formatting logic, salutation builders, control flow,
-## pattern matching, and string formatting routines.
+## Human-readable formatters for byte counts, durations, and system snapshots.
 
 import "../types.alya"
 
-# ───────────────────────────────────────────────────────────────
-# Private Formatting Helpers
-# ───────────────────────────────────────────────────────────────
-
-# Resolves a salutation prefix based on presentation style variant.
-function build_salutation(prefix: string, style: int) -> string
-    return when style
-        is SysinfoStyle.Formal => "Greetings and {prefix}"
-        is SysinfoStyle.Casual => "Hey"
-        else                    => prefix
+## Formats a byte count as "15 GB", "512 MB", "900 KB", "42 B" ("unknown" when negative).
+pub function format_bytes(n: int) -> string
+    if n < 0
+        return "unknown"
     end
-end
-
-# Resolves a human-readable label string for a given operational priority.
-function build_priority_label(priority: int) -> string
-    return when priority
-        is SysinfoPriority.Critical => "Critical"
-        is SysinfoPriority.High     => "High"
-        is SysinfoPriority.Normal   => "Normal"
-        is SysinfoPriority.Low      => "Low"
-        else                         => "Normal"
+    if n >= 1073741824
+        let g = n / 1073741824
+        return "{g} GB"
     end
-end
-
-# ───────────────────────────────────────────────────────────────
-# Public Formatting Functions
-# ───────────────────────────────────────────────────────────────
-
-## Formats a standard greeting message for the specified recipient name.
-##
-## ### Parameters
-## - `name`: The recipient name string.
-##
-## ### Returns
-## The formatted greeting string `"Hello, {name}!"`.
-##
-## ### Examples
-## ```alya
-## let msg = core_format_greeting("Alya") # "Hello, Alya!"
-## ```
-pub function core_format_greeting(name: string) -> string
-    return "Hello, {name}!"
-end
-
-## Formats a personalized greeting message using configuration fields and style patterns.
-##
-## Evaluates the configuration's `style` enum variant via `when` pattern matching
-## to determine the appropriate salutation prefix.
-##
-## ### Parameters
-## - `config`: The `SysinfoConfig` instance providing name, style, and priority.
-##
-## ### Returns
-## The formatted greeting string `"{salutation}, {name}!"`.
-##
-## ### Examples
-## ```alya
-## let cfg = make_config("Alice", 1, SysinfoPriority.Normal, SysinfoStyle.Formal)
-## let msg = core_format_custom(cfg) # "Greetings and Hello, Alice!"
-## ```
-pub function core_format_custom(config: SysinfoConfig) -> string
-    let salutation = build_salutation("Hello", config.style)
-    return "{salutation}, {config.name}!"
-end
-
-## Builds a multi-field formatted summary string from a `SysinfoConfig`.
-##
-## Summarizes name, count, priority label, and activation status.
-##
-## ### Parameters
-## - `config`: The `SysinfoConfig` instance to format.
-##
-## ### Returns
-## A formatted single-line string describing all configuration fields.
-##
-## ### Examples
-## ```alya
-## let cfg = make_config("App", 2, SysinfoPriority.High)
-## say format_config(cfg)
-## ```
-pub function format_config(config: SysinfoConfig) -> string
-    let prio = build_priority_label(config.priority)
-    let state_str = when config.enabled
-        is 1 => "enabled"
-        else => "disabled"
+    if n >= 1048576
+        let m = n / 1048576
+        return "{m} MB"
     end
-    return "[Config] {config.name} (count: {config.count}, priority: {prio}, status: {state_str})"
-end
-
-## Formats a `SysinfoResult` into an outcome string.
-##
-## ### Parameters
-## - `result`: The `SysinfoResult` instance to format.
-##
-## ### Returns
-## A formatted string prefixed with `[OK]` or `[ERROR]`.
-##
-## ### Examples
-## ```alya
-## let r = ok_result("Done", "Completed")
-## say format_result(r) # "[OK] Completed"
-## ```
-pub function format_result(result: SysinfoResult) -> string
-    if result.is_ok() == 1
-        return "[OK] {result.message}"
+    if n >= 1024
+        let k = n / 1024
+        return "{k} KB"
     end
-    return "[ERROR] {result.message}"
+    return "{n} B"
 end
 
-## Formats a `SysinfoStats` metric record into an overview string.
-##
-## ### Parameters
-## - `stats`: The `SysinfoStats` instance to format.
-##
-## ### Returns
-## A formatted string showing total evaluated items and success percentage.
-##
-## ### Examples
-## ```alya
-## let s = make_stats(20, 18, 2, 0)
-## say format_stats(s) # "[Stats] checked: 20, success rate: 90%"
-## ```
-pub function format_stats(stats: SysinfoStats) -> string
-    let checked = stats.total_checked()
-    let rate = stats.success_rate()
-    return "[Stats] checked: {checked}, success rate: {rate}"
-end
-
-## Formats an array of configuration records into an array of summary strings.
-##
-## ### Parameters
-## - `configs`: Array of `SysinfoConfig` instances.
-##
-## ### Returns
-## Array of formatted summary strings.
-##
-## ### Examples
-## ```alya
-## let list = [make_config("Alpha"), make_config("Beta")]
-## let summaries = format_batch(list)
-## ```
-pub function format_batch(configs: array) -> array
-    let output = []
-    for cfg in configs
-        output.push(format_config(cfg))
+## Formats seconds as "3d 4h", "5h 12m", "7m 30s", "45s" ("unknown" when negative).
+pub function format_duration(total_sec: int) -> string
+    if total_sec < 0
+        return "unknown"
     end
-    return output
+    let d = total_sec / 86400
+    let rest_d = total_sec - d * 86400
+    let h = rest_d / 3600
+    let rest_h = rest_d - h * 3600
+    let m = rest_h / 60
+    let s = rest_h - m * 60
+    if d > 0
+        return "{d}d {h}h"
+    end
+    if h > 0
+        return "{h}h {m}m"
+    end
+    if m > 0
+        return "{m}m {s}s"
+    end
+    return "{s}s"
 end
 
-## Clamps an integer value to the closed interval `[min_val, max_val]`.
-##
-## ### Parameters
-## - `n`: Target numeric value to clamp.
-## - `min_val`: Lower bound.
-## - `max_val`: Upper bound.
-##
-## ### Returns
-## Clamped integer within `[min_val, max_val]`.
-##
-## ### Examples
-## ```alya
-## let c = clamp_count(150, 0, 100) # 100
-## ```
-pub function clamp_count(n: int, min_val: int, max_val: int) -> int
-    if n < min_val
-        return min_val
-    elif n > max_val
-        return max_val
+## Formats a UTC offset in minutes as "UTC+3", "UTC-5:30", "UTC".
+pub function format_utc_offset(offset_min: int) -> string
+    if offset_min == 0
+        return "UTC"
     end
-    return n
+    let sign = "+"
+    let mag = offset_min
+    if offset_min < 0
+        sign = "-"
+        mag = 0 - offset_min
+    end
+    let h = mag / 60
+    let rest = mag - h * 60
+    if rest == 0
+        return "UTC{sign}{h}"
+    end
+    return "UTC{sign}{h}:{rest}"
 end
 
-## Chooses the singular or plural form of a noun depending on count `n`.
-##
-## Demonstrates ternary pattern matching with `when`.
-##
-## ### Parameters
-## - `n`: The item count.
-## - `singular`: Word form for count of 1.
-## - `plural`: Word form for counts other than 1.
-##
-## ### Returns
-## `singular` if `n == 1`, otherwise `plural`.
-##
-## ### Examples
-## ```alya
-## say core_pluralize(1, "item", "items") # "item"
-## say core_pluralize(3, "item", "items") # "items"
-## ```
-pub function core_pluralize(n: int, singular: string, plural: string) -> string
-    return when n
-        is 1 => singular
-        else => plural
+## Formats a one-line memory overview ("RAM 15956/32686 MB (48%)").
+pub function format_mem(info: MemInfo) -> string
+    if info.is_known() == 0
+        return "RAM unknown"
     end
+    let total = info.total_mb()
+    let avail = info.avail_mb()
+    let used = total - avail
+    let pct = info.used_percent()
+    return "RAM {used}/{total} MB ({pct}%)"
 end
 
-## Builds an array repeating the given label `count` times.
-##
-## Demonstrates a `while` loop with accumulator push.
-##
-## ### Parameters
-## - `label`: The string element to repeat.
-## - `count`: Number of repetitions.
-##
-## ### Returns
-## Array containing `count` copies of `label`.
-##
-## ### Examples
-## ```alya
-## let tags = repeat_label("default", 3) # ["default", "default", "default"]
-## ```
-pub function repeat_label(label: string, count: int) -> array
-    let result = []
-    let i = 0
-    while i < count
-        result.push(label)
-        i += 1
+## Formats a one-line disk overview ("C:/ 120/256 GB (47%)").
+pub function format_disk(usage: DiskUsage) -> string
+    if usage.is_known() == 0
+        return "{usage.path} unknown"
     end
-    return result
+    let total_g = usage.total_bytes / 1073741824
+    let used_g = usage.used_bytes() / 1073741824
+    let pct = usage.used_percent()
+    return "{usage.path} {used_g}/{total_g} GB ({pct}%)"
+end
+
+## Formats a full multi-line system snapshot.
+pub function format_system_summary(info: SystemInfo) -> string
+    let mem = format_mem(info.mem)
+    let disk = format_disk(info.disk)
+    let up = format_duration(info.uptime_sec)
+    let off = format_utc_offset(info.tz.offset_min)
+    return "OS: {info.os.version} [{info.os.arch}] | CPU: {info.cpu.model} x{info.cpu.cores} | {mem} | Disk: {disk} | Host: {info.host.hostname} | TZ: {info.tz.name} ({off}) | Uptime: {up} | Locale: {info.locale}"
 end

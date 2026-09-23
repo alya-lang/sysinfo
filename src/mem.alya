@@ -1,0 +1,25 @@
+## # sysinfo/mem
+##
+## Physical memory reporting for Alya (byte counts, -1 when unavailable).
+## Part of the Alya Language package ecosystem (https://github.com/alya-lang).
+
+import "./types.alya"
+import "./ffi.alya"
+
+## Returns total physical RAM in bytes (-1 when unavailable).
+pub function mem_total_bytes() -> int
+    return sysinfo_mem_total()
+end
+
+## Returns available physical RAM in bytes (-1 when unavailable).
+pub function mem_avail_bytes() -> int
+    return sysinfo_mem_avail()
+end
+
+## Collects the current memory figures into a MemInfo record.
+pub function mem_info() -> MemInfo
+    return MemInfo {
+        total_bytes: mem_total_bytes(),
+        avail_bytes: mem_avail_bytes()
+    }
+end

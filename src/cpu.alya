@@ -1,0 +1,35 @@
+## # sysinfo/cpu
+##
+## CPU identification for Alya.
+## Part of the Alya Language package ecosystem (https://github.com/alya-lang).
+
+import "./types.alya"
+import "./ffi.alya"
+
+## Returns the canonical CPU arch id ("x64", "x86", "arm64").
+pub function cpu_arch() -> string
+    return target_arch()
+end
+
+## Returns the logical processor count (>= 1).
+pub function cpu_cores() -> int
+    let n = sysinfo_cpu_cores()
+    if n > 0
+        return n
+    end
+    return 1
+end
+
+## Returns the human-readable CPU model ("" when unavailable).
+pub function cpu_model() -> string
+    return sysinfo_cpu_model()
+end
+
+## Collects the current CPU details into a CpuInfo record.
+pub function cpu_info() -> CpuInfo
+    return CpuInfo {
+        arch: cpu_arch(),
+        cores: cpu_cores(),
+        model: cpu_model()
+    }
+end

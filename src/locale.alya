@@ -6,16 +6,11 @@
 ## Resolution order: native OS API (FFI) -> LANGUAGE/LC_ALL/LC_MESSAGES/LANG -> "en".
 ## Tags are normalized to BCP-47-ish form: "tr_TR.UTF-8" becomes "tr-TR".
 
-import "std/os"
 import "std/str"
+import "./types.alya"
 import "./ffi.alya"
 
-## System locale record: full BCP-47 tag plus split lang/region parts.
-pub struct LocaleInfo
-    bcp47: string,
-    lang: string,
-    region: string
-end
+## System locale record is defined in types.alya (see LocaleInfo).
 
 ## Normalizes a raw locale string ("tr_TR.UTF-8", "en-US", "C") to "tr-TR"/"en-US"/"".
 pub function normalize_locale_tag(raw) -> string
@@ -60,7 +55,7 @@ end
 
 ## Reads POSIX locale env vars in priority order, normalized ("" when none).
 pub function env_locale_tag() -> string
-    let cands = [env("LANGUAGE"), env("LC_ALL"), env("LC_MESSAGES"), env("LANG")]
+    let cands = [get_env("LANGUAGE"), get_env("LC_ALL"), get_env("LC_MESSAGES"), get_env("LANG")]
     for c in cands
         let n = normalize_locale_tag(c)
         if len(n) > 0
