@@ -6,6 +6,7 @@
 
 import "./types.alya"
 import "./core/formatter.alya"
+import "./locale.alya"
 
 # ───────────────────────────────────────────────────────────────
 # Primary Facade APIs
@@ -181,4 +182,28 @@ import "./ffi.alya"
 ## Native C FFI helper function
 pub function c_add(a: int = 0, b: int = 0) -> int
     return alya_sysinfo_add(a, b)
+end
+
+# ───────────────────────────────────────────────────────────────
+# System Locale Facade (cross-platform: Win32 / Cocoa / libc + env)
+# ───────────────────────────────────────────────────────────────
+
+## Returns the best system locale tag (e.g. "tr-TR", "en-US"), "en" fallback.
+pub function system_lang(default_lang: string = "en") -> string
+    return system_locale_tag(default_lang)
+end
+
+## Returns the locale fallback chain (e.g. ["tr-TR", "tr", "en"]).
+pub function system_langs() -> array
+    return system_locale_chain()
+end
+
+## Normalizes a raw locale string to BCP-47-ish form ("tr_TR.UTF-8" -> "tr-TR").
+pub function normalize_locale(raw) -> string
+    return normalize_locale_tag(raw)
+end
+
+## Returns LocaleInfo for the current system locale.
+pub function locale_info() -> LocaleInfo
+    return system_locale_info()
 end

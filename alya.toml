@@ -14,8 +14,12 @@ keywords = ["alya", "alya-lang", "package", "sysinfo", "locale", "system", "i18n
 
 [build]
 c-sources = ["c/sysinfo.c"]
+c-sources-windows = ["c/win32_locale.c"]
+c-sources-macos = ["c/cocoa_locale.c"]
+c-sources-linux = ["c/linux_locale.c"]
 c-flags = ["-O2"]
 c-include-dirs = ["c"]
+c-link-flags-macos = ["-framework", "CoreFoundation", "-framework", "Foundation"]
 links = "sysinfo"
 
 # [lint]

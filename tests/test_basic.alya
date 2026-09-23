@@ -163,6 +163,17 @@ function main()
     let c_sum = pkg::c_add(10, 32)
     runner_assert_eq(r, c_sum, 42, "pkg::c_add executes bundled C code")
 
+    # 13. System locale detection (native FFI + env fallback)
+    let loc = pkg::system_lang()
+    runner_assert_true(r, len(loc) > 0, "system_lang returns non-empty tag")
+    let chain = pkg::system_langs()
+    runner_assert_true(r, len(chain) > 0, "system_langs returns fallback chain")
+    runner_assert_str_eq(r, pkg::normalize_locale("tr_TR.UTF-8"), "tr-TR", "normalize tr_TR.UTF-8 to tr-TR")
+    runner_assert_str_eq(r, pkg::normalize_locale("en-US"), "en-US", "normalize keeps en-US")
+    runner_assert_str_eq(r, pkg::normalize_locale("C"), "", "normalize maps C to empty")
+    let info = pkg::locale_info()
+    runner_assert_true(r, len(info.bcp47) > 0, "locale_info returns bcp47 tag")
+
     let failed = runner_summary(r)
     if failed > 0
         exit(1)

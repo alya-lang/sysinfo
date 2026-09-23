@@ -3,4 +3,5 @@
 
 extern "C" from "sysinfo"
     function alya_sysinfo_add(a: i32, b: i32) -> i32
+    function sysinfo_native_locale() -> str
 end

@@ -1,0 +1,137 @@
+## # sysinfo/locale
+##
+## Cross-platform system locale detection for Alya.
+## Part of the Alya Language package ecosystem (https://github.com/alya-lang).
+##
+## Resolution order: native OS API (FFI) -> LANGUAGE/LC_ALL/LC_MESSAGES/LANG -> "en".
+## Tags are normalized to BCP-47-ish form: "tr_TR.UTF-8" becomes "tr-TR".
+
+import "std/os"
+import "std/str"
+import "./ffi.alya"
+
+## System locale record: full BCP-47 tag plus split lang/region parts.
+pub struct LocaleInfo
+    bcp47: string,
+    lang: string,
+    region: string
+end
+
+## Normalizes a raw locale string ("tr_TR.UTF-8", "en-US", "C") to "tr-TR"/"en-US"/"".
+pub function normalize_locale_tag(raw) -> string
+    if raw is null
+        return ""
+    end
+    let s = trim(raw)
+    if len(s) == 0
+        return ""
+    end
+    let colon = index_of(s, ":")
+    if colon > 0
+        s = trim(s[..colon])
+    end
+    let dot = index_of(s, ".")
+    if dot > 0
+        s = s[..dot]
+    end
+    let at = index_of(s, "@")
+    if at > 0
+        s = s[..at]
+    end
+    s = trim(s)
+    s = replace(s, "_", "-")
+    if s == "" or s == "C" or s == "POSIX"
+        return ""
+    end
+    return s
+end
+
+## Returns the base language of a tag ("tr-TR" -> "tr", "en" -> "en").
+pub function base_lang_of(tag: string) -> string
+    if tag is null or len(tag) == 0
+        return ""
+    end
+    let dash = index_of(tag, "-")
+    if dash > 0
+        return tag[..dash]
+    end
+    return tag
+end
+
+## Reads POSIX locale env vars in priority order, normalized ("" when none).
+pub function env_locale_tag() -> string
+    let cands = [env("LANGUAGE"), env("LC_ALL"), env("LC_MESSAGES"), env("LANG")]
+    for c in cands
+        let n = normalize_locale_tag(c)
+        if len(n) > 0
+            return n
+        end
+    end
+    return ""
+end
+
+## Queries the native OS locale API (Win32/Cocoa/libc), normalized ("" when unknown).
+pub function native_locale_tag() -> string
+    let raw = sysinfo_native_locale()
+    return normalize_locale_tag(raw)
+end
+
+## Returns the best system locale tag, falling back to default_lang ("en").
+pub function system_locale_tag(default_lang: string = "en") -> string
+    let n = native_locale_tag()
+    if len(n) > 0
+        return n
+    end
+    let e = env_locale_tag()
+    if len(e) > 0
+        return e
+    end
+    return default_lang
+end
+
+## Returns the fallback chain: ["tr-TR", "tr", "en"] (deduplicated).
+pub function system_locale_chain() -> array
+    let full = system_locale_tag()
+    let out = []
+    if len(full) > 0
+        out.push(full)
+        let base = base_lang_of(full)
+        if len(base) > 0 and base != full
+            out.push(base)
+        end
+    end
+    let has_en = 0
+    for l in out
+        if l == "en"
+            has_en = 1
+        end
+    end
+    if has_en == 0
+        out.push("en")
+    end
+    return out
+end
+
+## Builds a LocaleInfo record from a tag string.
+pub function make_locale_info(tag: string) -> LocaleInfo
+    let full = normalize_locale_tag(tag)
+    if len(full) == 0
+        full = "en"
+    end
+    let base = base_lang_of(full)
+    let region = ""
+    let dash = index_of(full, "-")
+    if dash > 0
+        region = full[(dash + 1)..]
+    end
+    return LocaleInfo {
+        bcp47: full,
+        lang: base,
+        region: region
+    }
+end
+
+## Returns LocaleInfo for the current system locale.
+pub function system_locale_info() -> LocaleInfo
+    return make_locale_info(system_locale_tag())
+end
