@@ -5,6 +5,7 @@
 
 import "./types.alya"
 import "./ffi.alya"
+import "./core/strutil.alya"
 
 ## Returns the canonical CPU arch id ("x64", "x86", "arm64").
 pub function cpu_arch() -> string
@@ -36,12 +37,12 @@ end
 
 ## Returns the human-readable CPU model ("" when unavailable).
 pub function cpu_model() -> string
-    return sysinfo_cpu_model()
+    return str_owned(sysinfo_cpu_model())
 end
 
 ## Returns the CPU vendor ("GenuineIntel", "AuthenticAMD", "Apple", "" when unavailable).
 pub function cpu_vendor() -> string
-    return sysinfo_cpu_vendor()
+    return str_owned(sysinfo_cpu_vendor())
 end
 
 ## Collects the current CPU details into a CpuInfo record.

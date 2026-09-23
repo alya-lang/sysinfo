@@ -5,6 +5,7 @@
 
 import "./types.alya"
 import "./ffi.alya"
+import "./core/strutil.alya"
 
 ## Returns the canonical OS id ("windows", "linux", "macos").
 pub function os_name() -> string
@@ -15,7 +16,7 @@ end
 pub function os_version() -> string
     let v = sysinfo_os_version()
     if len(v) > 0
-        return v
+        return str_owned(v)
     end
     return target_os()
 end
@@ -27,17 +28,17 @@ end
 
 ## Returns the kernel release ("NT 10.0.26200", "24.6.0", "6.8.0-52-generic").
 pub function kernel_version() -> string
-    return sysinfo_kernel_version()
+    return str_owned(sysinfo_kernel_version())
 end
 
 ## Returns the distribution id ("ubuntu", "debian", "" on Windows/macOS).
 pub function distro_id() -> string
-    return sysinfo_distro_id()
+    return str_owned(sysinfo_distro_id())
 end
 
 ## Returns the distribution version ("24.04", "" on Windows/macOS).
 pub function distro_version() -> string
-    return sysinfo_distro_version()
+    return str_owned(sysinfo_distro_version())
 end
 
 ## Returns 1 when running with elevated privileges (admin/root), else 0.

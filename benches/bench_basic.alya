@@ -70,6 +70,16 @@ function main()
     end
     bench_stop(runner, "env_map() 1k calls")
 
+    # Bench 8: format_swap() pure-Alya formatting — 100k iterations
+    let sm = pkg::mem_info()
+    bench_start(runner, 100000)
+    let w = 0
+    while w < 100000
+        pkg::format_swap(sm)
+        w += 1
+    end
+    bench_stop(runner, "format_swap() 100k calls")
+
     bench_summary(runner)
 end
 

@@ -9,6 +9,7 @@
 import "std/str"
 import "./types.alya"
 import "./ffi.alya"
+import "./core/strutil.alya"
 
 ## System locale record is defined in types.alya (see LocaleInfo).
 
@@ -38,7 +39,7 @@ pub function normalize_locale_tag(raw) -> string
     if s == "" or s == "C" or s == "POSIX"
         return ""
     end
-    return s
+    return str_owned(s)
 end
 
 ## Returns the base language of a tag ("tr-TR" -> "tr", "en" -> "en").

@@ -5,29 +5,30 @@
 
 import "./types.alya"
 import "./ffi.alya"
+import "./core/strutil.alya"
 
 ## Returns the machine hostname ("" when unavailable).
 pub function host_name() -> string
     let n = sysinfo_host_name()
     if len(n) > 0
-        return n
+        return str_owned(n)
     end
     if target_os() == "windows"
-        return get_env("COMPUTERNAME")
+        return str_owned(get_env("COMPUTERNAME"))
     end
-    return get_env("HOSTNAME")
+    return str_owned(get_env("HOSTNAME"))
 end
 
 ## Returns the current user name ("" when unavailable).
 pub function host_user() -> string
     if target_os() == "windows"
-        return get_env("USERNAME")
+        return str_owned(get_env("USERNAME"))
     end
     let u = get_env("USER")
     if len(u) > 0
-        return u
+        return str_owned(u)
     end
-    return get_env("LOGNAME")
+    return str_owned(get_env("LOGNAME"))
 end
 
 ## Collects host identity into a HostInfo record.

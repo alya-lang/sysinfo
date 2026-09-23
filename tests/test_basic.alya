@@ -88,17 +88,35 @@ function main()
     runner_assert_true(r, len(chain) > 0, "system_langs returns fallback chain")
     runner_assert_str_eq(r, pkg::normalize_locale("tr_TR.UTF-8"), "tr-TR", "normalize tr_TR.UTF-8 to tr-TR")
     runner_assert_str_eq(r, pkg::normalize_locale("en-US"), "en-US", "normalize keeps en-US")
+    runner_assert_str_eq(r, pkg::normalize_locale("en_US"), "en-US", "normalize en_US to en-US")
+    runner_assert_str_eq(r, pkg::normalize_locale("tr:en"), "tr", "normalize takes first LANGUAGE entry")
+    runner_assert_str_eq(r, pkg::normalize_locale("POSIX"), "", "normalize maps POSIX to empty")
     runner_assert_str_eq(r, pkg::normalize_locale("C"), "", "normalize maps C to empty")
+    let fixed_loc = pkg::make_locale_info("tr-TR")
+    runner_assert_str_eq(r, fixed_loc.bcp47, "tr-TR", "make_locale_info bcp47")
+    runner_assert_str_eq(r, fixed_loc.lang, "tr", "make_locale_info lang")
+    runner_assert_str_eq(r, fixed_loc.region, "TR", "make_locale_info region")
+    let chain_last = chain[len(chain) - 1]
+    runner_assert_str_eq(r, chain_last, "en", "fallback chain always ends with en")
     let info = pkg::locale_info()
     runner_assert_true(r, len(info.bcp47) > 0, "locale_info returns bcp47 tag")
 
     # ═══════════════════════════════════════════════════════════
-    # 9. Formatters
+    # 9. Formatters (deterministic vectors)
     # ═══════════════════════════════════════════════════════════
     runner_assert_str_eq(r, pkg::format_bytes(42), "42 B", "format_bytes bytes")
     runner_assert_str_eq(r, pkg::format_bytes(2048), "2 KB", "format_bytes kilobytes")
     runner_assert_str_eq(r, pkg::format_bytes(10485760), "10 MB", "format_bytes megabytes")
+    runner_assert_str_eq(r, pkg::format_bytes(16106127360), "15 GB", "format_bytes gigabytes")
+    runner_assert_str_eq(r, pkg::format_bytes(2199023255552), "2 TB", "format_bytes terabytes")
     runner_assert_str_eq(r, pkg::format_bytes(-1), "unknown", "format_bytes unknown")
+    runner_assert_str_eq(r, pkg::format_duration(90000), "1d 1h", "format_duration days")
+    runner_assert_str_eq(r, pkg::format_utc_offset(-300), "UTC-5", "format_utc_offset negative whole hour")
+    runner_assert_str_eq(r, pkg::format_utc_offset(-330), "UTC-5:30", "format_utc_offset negative half hour")
+    let fixed_mem = pkg::make_mem_info(2147483648, 1073741824, 1073741824, 536870912)
+    runner_assert_str_eq(r, pkg::format_mem(fixed_mem), "RAM 1024/2048 MB (50%)", "format_mem fixed vector")
+    runner_assert_str_eq(r, pkg::format_swap(fixed_mem), "Swap 512/1024 MB (50%)", "format_swap fixed vector")
+    runner_assert_eq(r, fixed_mem.swap_mb(), 1024, "swap_mb fixed vector")
 
     # ═══════════════════════════════════════════════════════════
     # 10. Aggregated snapshot
@@ -129,6 +147,8 @@ function main()
     runner_assert_true(r, phys <= pkg::cpu_cores(), "physical cores do not exceed logical cores")
     runner_assert_true(r, pkg::cpu_freq_mhz() >= -1, "cpu_freq_mhz returns -1 or positive")
     runner_assert_true(r, len(pkg::format_cpu(pkg::cpu_info())) > 0, "format_cpu returns non-empty string")
+    let os_flags = pkg::os_is_windows() + pkg::os_is_linux() + pkg::os_is_macos()
+    runner_assert_eq(r, os_flags, 1, "exactly one OS flag is set")
 
     # ═══════════════════════════════════════════════════════════
     # 13. Swap memory
@@ -144,7 +164,15 @@ function main()
     # ═══════════════════════════════════════════════════════════
     let vols = pkg::volumes()
     runner_assert_true(r, len(vols) >= 1, "volumes() lists at least one mount")
-    runner_assert_true(r, len(vols[0].path) > 0, "first volume has a mount path")
+    let first_vol: DiskUsage = vols[0]
+    runner_assert_true(r, len(first_vol.path) > 0, "first volume has a mount path")
+    runner_assert_true(r, first_vol.total_bytes > 0, "first volume total is positive")
+    runner_assert_eq(r, pkg::mount_count(), len(vols), "mount_count matches volumes length")
+    runner_assert_true(r, pkg::disk_usage("/no/such/path/xyz").is_known() == 0, "unknown path is not known")
+    let not_macos = pkg::os_name() == "windows" or pkg::os_name() == "linux"
+    if not_macos
+        runner_assert_true(r, len(du.fstype) > 0, "fstype is known on Windows/Linux")
+    end
 
     # ═══════════════════════════════════════════════════════════
     # 15. Power & battery
@@ -155,7 +183,9 @@ function main()
     let ac = pkg::on_ac()
     runner_assert_true(r, ac >= -1, "on_ac returns -1, 0 or 1")
     runner_assert_true(r, ac <= 1, "on_ac does not exceed 1")
-    runner_assert_true(r, len(pkg::format_power(pkg::power_info())) > 0, "format_power returns non-empty string")
+    let pwr = pkg::power_info()
+    runner_assert_true(r, pwr.has_battery() == 0 or pwr.has_battery() == 1, "has_battery returns 0 or 1")
+    runner_assert_true(r, len(pkg::format_power(pwr)) > 0, "format_power returns non-empty string")
 
     # ═══════════════════════════════════════════════════════════
     # 16. Process, boot time & load average
@@ -166,9 +196,15 @@ function main()
     let is_windows = pkg::os_name() == "windows"
     if is_windows
         runner_assert_true(r, pkg::load_avg_1() < 0.0, "load average is unavailable on Windows")
+        runner_assert_true(r, pkg::load_avg_5() < 0.0, "load 5min is unavailable on Windows")
+        runner_assert_true(r, pkg::load_avg_15() < 0.0, "load 15min is unavailable on Windows")
+        runner_assert_eq(r, pkg::load_is_known(), 0, "load is not known on Windows")
     else
         runner_assert_true(r, pkg::load_avg_1() >= 0.0, "load_avg_1 is non-negative on POSIX")
+        runner_assert_true(r, pkg::load_avg_5() >= 0.0, "load_avg_5 is non-negative on POSIX")
+        runner_assert_true(r, pkg::load_avg_15() >= 0.0, "load_avg_15 is non-negative on POSIX")
     end
+    runner_assert_true(r, pkg::uptime_days() >= 0, "uptime_days is non-negative")
 
     # ═══════════════════════════════════════════════════════════
     # 17. Full environment map
@@ -176,6 +212,7 @@ function main()
     runner_assert_true(r, pkg::env_len() > 0, "env_len returns positive count")
     let path_val = pkg::env_val("PATH", pkg::env_val("Path", ""))
     runner_assert_true(r, len(path_val) > 0, "PATH/Path is present in environment")
+    runner_assert_str_eq(r, pkg::env_val("SYSINFO_DEFINITELY_MISSING_VAR", "fb"), "fb", "env_val falls back to default")
 
     # 18. Native C FFI verification
     let c_sum = pkg::c_add(10, 32)

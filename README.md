@@ -185,6 +185,9 @@ main()
 
 > [!TIP]
 > **Internal Helpers & Documentation:** Public symbols are documented with `##` Markdown docstrings, enabling automatic API documentation generation via `alya doc`. Private helpers remain encapsulated without `pub`.
+>
+> [!NOTE]
+> **FFI string ownership:** Native `str` results are zero-copy views into C static buffers. Every stored or returned FFI string is pinned to a heap copy at the module boundary via `str_owned()` (`src/core/strutil.alya`), so snapshots stay valid across further FFI calls.
 
 ---
 

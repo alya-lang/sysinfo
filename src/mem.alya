@@ -35,3 +35,13 @@ pub function mem_info() -> MemInfo
         swap_avail_bytes: swap_avail_bytes()
     }
 end
+
+## Builds a MemInfo record from explicit byte counts (useful for tests and demos).
+pub function make_mem_info(total_bytes: int, avail_bytes: int, swap_total: int = -1, swap_avail: int = -1) -> MemInfo
+    return MemInfo {
+        total_bytes: total_bytes,
+        avail_bytes: avail_bytes,
+        swap_total_bytes: swap_total,
+        swap_avail_bytes: swap_avail
+    }
+end

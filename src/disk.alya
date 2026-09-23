@@ -6,6 +6,7 @@
 import "std/str"
 import "./types.alya"
 import "./ffi.alya"
+import "./core/strutil.alya"
 
 ## Returns the default query path ("C:/" on Windows, "/" elsewhere).
 pub function disk_default_path() -> string
@@ -50,7 +51,7 @@ pub function disk_usage(path: string = "") -> DiskUsage
     end
     return DiskUsage {
         path: p,
-        fstype: sysinfo_fs_type(p),
+        fstype: str_owned(sysinfo_fs_type(p)),
         total_bytes: sysinfo_disk_total(p),
         free_bytes: sysinfo_disk_free(p)
     }

@@ -5,6 +5,7 @@
 
 import "./types.alya"
 import "./ffi.alya"
+import "./core/strutil.alya"
 
 ## Returns the current process id.
 pub function proc_pid() -> int
@@ -13,7 +14,7 @@ end
 
 ## Returns the current executable path ("" when unavailable).
 pub function proc_exe() -> string
-    return sysinfo_exe_path()
+    return str_owned(sysinfo_exe_path())
 end
 
 ## Collects current process details into a ProcInfo record.

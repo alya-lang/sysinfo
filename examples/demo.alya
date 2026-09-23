@@ -27,15 +27,19 @@ function main()
     let mem = pkg::mem_info()
     say "Total:   " + pkg::format_bytes(mem.total_bytes)
     say "Avail:   " + pkg::format_bytes(mem.avail_bytes)
-    say "Swap:    " + pkg::format_bytes(mem.swap_total_bytes)
     say "Summary: " + pkg::format_mem(mem)
+    say "Swap:    " + pkg::format_swap(mem)
     say ""
 
     say "--- 4. Disk ---"
     let du = pkg::disk_usage()
     say "Path:    " + du.path + " [" + du.fstype + "]"
     say "Summary: " + pkg::format_disk(du)
-    say "Mounts:  " + str(len(pkg::volumes()))
+    let vols = pkg::volumes()
+    say "Mounts:  " + str(len(vols))
+    if len(vols) > 0
+        say "First:   " + pkg::format_disk(vols[0])
+    end
     say ""
 
     say "--- 5. Host & Timezone ---"
@@ -63,6 +67,14 @@ function main()
 
     say "--- 8. Full Snapshot ---"
     say pkg::summary()
+    say ""
+    say "--- 9. Detailed Report ---"
+    say pkg::details()
+    if pkg::load_is_known() == 1
+        say "Load averages available on this platform"
+    else
+        say "Load averages unavailable on this platform"
+    end
     say ""
     say "Done!"
 end

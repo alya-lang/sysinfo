@@ -5,10 +5,14 @@
 
 import "../types.alya"
 
-## Formats a byte count as "15 GB", "512 MB", "900 KB", "42 B" ("unknown" when negative).
+## Formats a byte count as "2 TB", "15 GB", "512 MB", "900 KB", "42 B" ("unknown" when negative).
 pub function format_bytes(n: int) -> string
     if n < 0
         return "unknown"
+    end
+    if n >= 1099511627776
+        let t = n / 1099511627776
+        return "{t} TB"
     end
     if n >= 1073741824
         let g = n / 1073741824
@@ -77,6 +81,24 @@ pub function format_mem(info: MemInfo) -> string
     let used = total - avail
     let pct = info.used_percent()
     return "RAM {used}/{total} MB ({pct}%)"
+end
+
+## Formats a swap overview ("Swap 512/1024 MB (50%)", "Swap none", "Swap unknown").
+pub function format_swap(info: MemInfo) -> string
+    if info.swap_total_bytes < 0
+        return "Swap unknown"
+    end
+    if info.swap_total_bytes == 0
+        return "Swap none"
+    end
+    let total = info.swap_mb()
+    if info.swap_avail_bytes < 0
+        return "Swap {total} MB"
+    end
+    let avail = info.swap_avail_bytes / 1048576
+    let used = total - avail
+    let pct = info.swap_used_percent()
+    return "Swap {used}/{total} MB ({pct}%)"
 end
 
 ## Formats a one-line disk overview ("C:/ 120/256 GB (47%)").

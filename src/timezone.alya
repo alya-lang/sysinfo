@@ -5,14 +5,15 @@
 
 import "./types.alya"
 import "./ffi.alya"
+import "./core/strutil.alya"
 
 ## Returns the system timezone name ("" when unavailable).
 pub function tz_name() -> string
     let n = sysinfo_tz_name()
     if len(n) > 0
-        return n
+        return str_owned(n)
     end
-    return get_env("TZ")
+    return str_owned(get_env("TZ"))
 end
 
 ## Returns the UTC offset in minutes (UTC+3 -> 180, 0 when unavailable).
