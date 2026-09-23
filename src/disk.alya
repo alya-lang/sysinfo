@@ -4,6 +4,7 @@
 ## Part of the Alya Language package ecosystem (https://github.com/alya-lang).
 
 import "std/str"
+import "std/path"
 import "./types.alya"
 import "./ffi.alya"
 import "./core/strutil.alya"
@@ -18,7 +19,7 @@ end
 
 ## Returns filesystem total size in bytes for path (-1 when unavailable).
 pub function disk_total_bytes(path: string = "") -> int
-    let p = path
+    let p = to_slash(path)
     if len(p) == 0
         p = disk_default_path()
     end
@@ -27,7 +28,7 @@ end
 
 ## Returns filesystem available size in bytes for path (-1 when unavailable).
 pub function disk_free_bytes(path: string = "") -> int
-    let p = path
+    let p = to_slash(path)
     if len(p) == 0
         p = disk_default_path()
     end
@@ -36,7 +37,7 @@ end
 
 ## Returns the filesystem type for path ("NTFS", "ext4", "" when unavailable).
 pub function fs_type(path: string = "") -> string
-    let p = path
+    let p = to_slash(path)
     if len(p) == 0
         p = disk_default_path()
     end
@@ -45,7 +46,7 @@ end
 
 ## Collects disk usage for path into a DiskUsage record.
 pub function disk_usage(path: string = "") -> DiskUsage
-    let p = path
+    let p = to_slash(path)
     if len(p) == 0
         p = disk_default_path()
     end
@@ -75,7 +76,7 @@ pub function mounts() -> array
         let entry = sysinfo_mount_at(i)
         let sep = index_of(entry, "|")
         if sep > 0
-            let mnt = entry[..sep]
+            let mnt = to_slash(entry[..sep])
             let fst = entry[(sep + 1)..]
             out.push(DiskUsage {
                 path: mnt,

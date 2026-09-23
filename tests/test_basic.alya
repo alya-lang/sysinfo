@@ -2,6 +2,7 @@
 ## Part of the Alya Language package ecosystem (https://github.com/alya-lang)
 
 import "std/test"
+import "std/str"
 import "../src/lib.alya" as pkg
 
 function main()
@@ -172,6 +173,19 @@ function main()
     let not_macos = pkg::os_name() == "windows" or pkg::os_name() == "linux"
     if not_macos
         runner_assert_true(r, len(du.fstype) > 0, "fstype is known on Windows/Linux")
+    end
+    if pkg::os_name() == "windows"
+        runner_assert_str_eq(r, pkg::disk_usage("C:\\").path, "C:/", "backslash input normalized to slashes")
+        let bad_sep = 0
+        let vi = 0
+        while vi < len(vols)
+            let vv: DiskUsage = vols[vi]
+            if index_of(vv.path, "\\") >= 0
+                bad_sep = 1
+            end
+            vi += 1
+        end
+        runner_assert_eq(r, bad_sep, 0, "volume paths use forward slashes")
     end
 
     # ═══════════════════════════════════════════════════════════
