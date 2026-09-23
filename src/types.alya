@@ -175,6 +175,12 @@ pub function MemInfo.used_percent(self: MemInfo) -> int
         return -1
     end
     let used = self.total_bytes - self.avail_bytes
+    if used < 0
+        return 0
+    end
+    if used > self.total_bytes
+        return 100
+    end
     return (used * 100) / self.total_bytes
 end
 
@@ -200,6 +206,12 @@ pub function MemInfo.swap_used_percent(self: MemInfo) -> int
         return -1
     end
     let used = self.swap_total_bytes - self.swap_avail_bytes
+    if used < 0
+        return 0
+    end
+    if used > self.swap_total_bytes
+        return 100
+    end
     return (used * 100) / self.swap_total_bytes
 end
 
@@ -221,6 +233,12 @@ pub function DiskUsage.used_percent(self: DiskUsage) -> int
         return -1
     end
     let used = self.total_bytes - self.free_bytes
+    if used < 0
+        return 0
+    end
+    if used > self.total_bytes
+        return 100
+    end
     return (used * 100) / self.total_bytes
 end
 

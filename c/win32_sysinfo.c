@@ -262,7 +262,14 @@ long long sysinfo_swap_avail(void) {
         return -1;
     }
     long long avail = (long long)st.ullAvailPageFile - (long long)st.ullAvailPhys;
-    return avail < 0 ? 0 : avail;
+    if (avail < 0) {
+        return 0;
+    }
+    long long total = (long long)st.ullTotalPageFile - (long long)st.ullTotalPhys;
+    if (total >= 0 && avail > total) {
+        return total;
+    }
+    return avail;
 }
 
 int sysinfo_battery_percent(void) {

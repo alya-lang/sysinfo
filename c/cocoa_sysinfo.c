@@ -224,23 +224,10 @@ static int iokit_battery(int *pct, int *ac) {
             if (!d) {
                 continue;
             }
+            CFStringRef state = CFDictionaryGetValue(d, CFSTR(kIOPSPowerSourceStateKey));
+            int powered = state && CFStringCompare(state, CFSTR(kIOPSACPowerValue), 0) == kCFCompareEqualTo;
             CFStringRef transport = CFDictionaryGetValue(d, CFSTR(kIOPSTransportTypeKey));
-            int is_internal = 0, is_ac = 0;
-            if (transport) {
-                if (CFStringCompare(transport, CFSTR(kIOPSInternalType), 0) == kCFCompareEqualTo) {
-                    is_internal = 1;
-                }
-                if (CFStringCompare(transport, CFSTR(kIOPSACPowerType), 0) == kCFCompareEqualTo) {
-                    is_ac = 1;
-                }
-            }
-            if (is_ac) {
-                if (ac) {
-                    *ac = 1;
-                }
-                ok = 1;
-                continue;
-            }
+            int is_internal = transport && CFStringCompare(transport, CFSTR(kIOPSInternalType), 0) == kCFCompareEqualTo;
             if (is_internal) {
                 CFNumberRef cur = CFDictionaryGetValue(d, CFSTR(kIOPSCurrentCapacityKey));
                 CFNumberRef max = CFDictionaryGetValue(d, CFSTR(kIOPSMaxCapacityKey));
@@ -252,15 +239,10 @@ static int iokit_battery(int *pct, int *ac) {
                     }
                     ok = 1;
                 }
-                if (ac) {
-                    CFStringRef state = CFDictionaryGetValue(d, CFSTR(kIOPSPowerSourceStateKey));
-                    if (state && CFStringCompare(state, CFSTR(kIOPSACPowerValue), 0) == kCFCompareEqualTo) {
-                        *ac = 1;
-                    } else if (*ac < 0) {
-                        *ac = 0;
-                    }
-                    ok = 1;
-                }
+            }
+            if (ac && (*ac < 0 || powered)) {
+                *ac = powered ? 1 : 0;
+                ok = 1;
             }
         }
         CFRelease(list);
