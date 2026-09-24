@@ -278,6 +278,9 @@ int sysinfo_battery_percent(void) {
     if (!GetSystemPowerStatus(&sps)) {
         return -1;
     }
+    if (sps.BatteryFlag & 128) {
+        return -1;
+    }
     if (sps.BatteryLifePercent > 100) {
         return -1;
     }
