@@ -191,7 +191,7 @@ main()
 
 ---
 
-## 🖥️ Platform Coverage
+### 🖥️ Platform Coverage
 
 | Capability | Windows | macOS | Linux |
 |---|---|---|---|
