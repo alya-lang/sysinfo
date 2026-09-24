@@ -141,7 +141,9 @@ int sysinfo_utc_offset_min(void) {
 
 /* ---- Extended detail APIs ---- */
 
+#if defined(__i386__) || defined(__x86_64__)
 #include <cpuid.h>
+#endif
 
 static char g_kernel[64];
 
