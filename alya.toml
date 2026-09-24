@@ -3,12 +3,12 @@ name = "sysinfo"
 version = "0.1.0"
 alya-version = "0.0.19"
 entry = "src/lib.alya"
-description = "Cross-platform system information: locale, language, timezone and OS details for Alya"
+description = "Cross-platform system information: OS, CPU, memory, disk, host, timezone, power, process, env, load, and locale for Alya"
 authors = ["Alya Language Contributors <https://github.com/alya-lang>"]
 license = "MIT"
 homepage = "https://github.com/alya-lang/alya"
 repository = "https://github.com/alya-lang/sysinfo"
-keywords = ["alya", "alya-lang", "package", "sysinfo", "locale", "system", "i18n", "c", "ffi"]
+keywords = ["alya", "alya-lang", "package", "sysinfo", "locale", "system", "cpu", "memory", "hardware", "i18n", "c", "ffi"]
 
 [dependencies]
 
