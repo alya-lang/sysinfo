@@ -73,7 +73,7 @@ function main()
     let nics = pkg::net_interfaces()
     say "Ifaces:  " + str(len(nics))
     let ni = 0
-    while ni < len(nics) and ni < 6
+    while ni < len(nics)
         say "  - " + pkg::format_net(nics[ni])
         ni += 1
     end
