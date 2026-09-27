@@ -193,10 +193,13 @@ end
 pub function format_power(info: PowerInfo) -> string
     if info.has_battery() == 1
         let pct = info.battery_percent
-        if info.is_on_ac() == 1
+        if info.on_ac == 1
             return "Battery {pct}% (AC)"
         end
-        return "Battery {pct}% (discharging)"
+        if info.on_ac == 0
+            return "Battery {pct}% (discharging)"
+        end
+        return "Battery {pct}% (power source unknown)"
     end
     if info.is_on_ac() == 1
         return "AC power"

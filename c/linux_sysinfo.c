@@ -451,9 +451,9 @@ int sysinfo_battery_percent(void) {
 }
 
 int sysinfo_on_ac(void) {
-    const char *acs[] = { "AC", "ACAD", "ADP0", "ADP1" };
+    const char *acs[] = { "AC", "AC1", "ACAD", "ADP0", "ADP1" };
     char p[160];
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         snprintf(p, sizeof(p), "/sys/class/power_supply/%s/online", acs[i]);
         long v = -1;
         if (read_long_file(p, &v)) {
@@ -574,7 +574,12 @@ const char *sysinfo_mount_at(int index) {
         if (i == index) {
             char dev[512], mnt[512], fs[128];
             if (sscanf(line, "%511s %511s %127s", dev, mnt, fs) == 3) {
-                snprintf(g_mount, sizeof(g_mount), "%s|%s", mnt, fs);
+                /* Canonicalize /proc/mounts aliases to statfs names. */
+                const char *canon = fs;
+                if (strcmp(fs, "overlay") == 0) {
+                    canon = "overlayfs";
+                }
+                snprintf(g_mount, sizeof(g_mount), "%s|%s", mnt, canon);
                 fclose(f);
                 return g_mount;
             }

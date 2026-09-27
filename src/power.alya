@@ -23,3 +23,11 @@ pub function power_info() -> PowerInfo
         on_ac: on_ac()
     }
 end
+
+## Builds a PowerInfo record from explicit values (testing/snapshots).
+pub function make_power_info(battery_pct: int = -1, ac: int = -1) -> PowerInfo
+    return PowerInfo {
+        battery_percent: battery_pct,
+        on_ac: ac
+    }
+end
