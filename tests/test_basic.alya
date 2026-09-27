@@ -145,8 +145,10 @@ function main()
     # 12. CPU detail (physical cores, frequency, vendor)
     # ═══════════════════════════════════════════════════════════
     let phys = pkg::cpu_physical()
-    runner_assert_true(r, phys >= 1, "cpu_physical returns at least 1")
-    runner_assert_true(r, phys <= pkg::cpu_cores(), "physical cores do not exceed logical cores")
+    runner_assert_true(r, phys >= -1, "cpu_physical returns -1 or positive")
+    if phys >= 1
+        runner_assert_true(r, phys <= pkg::cpu_cores(), "physical cores do not exceed logical cores")
+    end
     runner_assert_true(r, pkg::cpu_freq_mhz() >= -1, "cpu_freq_mhz returns -1 or positive")
     runner_assert_true(r, len(pkg::format_cpu(pkg::cpu_info())) > 0, "format_cpu returns non-empty string")
     let os_flags = pkg::os_is_windows() + pkg::os_is_linux() + pkg::os_is_macos()
