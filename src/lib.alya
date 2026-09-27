@@ -18,6 +18,7 @@ import "./proc.alya"
 import "./env_info.alya"
 import "./load.alya"
 import "./uptime.alya"
+import "./net.alya"
 import "./core/formatter.alya"
 
 # ───────────────────────────────────────────────────────────────
@@ -28,7 +29,7 @@ import "./core/formatter.alya"
 ##
 ## ### Returns
 ## Populated `SystemInfo` with OS, CPU, memory, disk, host, timezone,
-## power, process, uptime, and locale details.
+## power, process, uptime, locale, and network interface details.
 ##
 ## ### Examples
 ## ```alya
@@ -46,7 +47,8 @@ pub function system_info() -> SystemInfo
         power: power_info(),
         proc: proc_info(),
         uptime_sec: uptime_sec(),
-        locale: system_locale_tag()
+        locale: system_locale_tag(),
+        net: net_interfaces()
     }
 end
 

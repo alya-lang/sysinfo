@@ -10,6 +10,12 @@
 #include <pwd.h>
 #include <unistd.h>
 #include <time.h>
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <CoreFoundation/CoreFoundation.h>
 
 int sysinfo_cpu_cores(void) {
@@ -61,7 +67,23 @@ const char *sysinfo_os_version(void) {
     if (sysctlbyname("kern.osproductversion", build, &s, 0, 0) != 0) {
         return "macOS";
     }
-    snprintf(g_ver, sizeof(g_ver), "macOS %s", build);
+    /* Attach the marketing name for known major releases. */
+    const char *marketing = "";
+    int major = atoi(build);
+    if (major >= 26) {
+        marketing = "Tahoe ";
+    } else if (major == 15) {
+        marketing = "Sequoia ";
+    } else if (major == 14) {
+        marketing = "Sonoma ";
+    } else if (major == 13) {
+        marketing = "Ventura ";
+    } else if (major == 12) {
+        marketing = "Monterey ";
+    } else if (major == 11) {
+        marketing = "Big Sur ";
+    }
+    snprintf(g_ver, sizeof(g_ver), "macOS %s%s", marketing, build);
     return g_ver;
 }
 
@@ -431,4 +453,190 @@ const char *sysinfo_host_native(void) {
     }
     g_host_native[sizeof(g_host_native) - 1] = '\0';
     return g_host_native;
+}
+
+static char g_net[1024];
+
+int sysinfo_net_count(void) {
+    struct ifaddrs *head = 0;
+    struct ifaddrs *p = 0;
+    char seen[256][64];
+    int n = 0;
+    int i = 0;
+    int found = 0;
+    if (getifaddrs(&head) != 0) {
+        return -1;
+    }
+    for (p = head; p != 0; p = p->ifa_next) {
+        if (p->ifa_name == 0) {
+            continue;
+        }
+        found = 0;
+        for (i = 0; i < n; i++) {
+            if (strcmp(seen[i], p->ifa_name) == 0) {
+                found = 1;
+                break;
+            }
+        }
+        if (!found) {
+            if (n >= 256) {
+                break;
+            }
+            strncpy(seen[n], p->ifa_name, sizeof(seen[n]) - 1);
+            seen[n][sizeof(seen[n]) - 1] = '\0';
+            n++;
+        }
+    }
+    freeifaddrs(head);
+    return n;
+}
+
+const char *sysinfo_net_at(int index) {
+    struct ifaddrs *head = 0;
+    struct ifaddrs *p = 0;
+    char target[128];
+    char mac[32];
+    char ipv4[64];
+    char v6first[64];
+    char v6pref[64];
+    const char *v6 = 0;
+    int up = 0;
+    int lo = 0;
+    int have_target = 0;
+    if (index < 0) {
+        return "";
+    }
+    if (getifaddrs(&head) != 0) {
+        return "";
+    }
+    target[0] = '\0';
+    {
+        char seen[256][64];
+        int n = 0;
+        int k = 0;
+        int found = 0;
+        for (p = head; p != 0; p = p->ifa_next) {
+            if (p->ifa_name == 0) {
+                continue;
+            }
+            found = 0;
+            for (k = 0; k < n; k++) {
+                if (strcmp(seen[k], p->ifa_name) == 0) {
+                    found = 1;
+                    break;
+                }
+            }
+            if (found) {
+                continue;
+            }
+            if (n < 256) {
+                strncpy(seen[n], p->ifa_name, sizeof(seen[n]) - 1);
+                seen[n][sizeof(seen[n]) - 1] = '\0';
+                if (n == index) {
+                    strncpy(target, p->ifa_name, sizeof(target) - 1);
+                    target[sizeof(target) - 1] = '\0';
+                    have_target = 1;
+                }
+                n++;
+            }
+        }
+    }
+    if (!have_target) {
+        freeifaddrs(head);
+        return "";
+    }
+    mac[0] = '\0';
+    ipv4[0] = '\0';
+    v6first[0] = '\0';
+    v6pref[0] = '\0';
+    for (p = head; p != 0; p = p->ifa_next) {
+        if (p->ifa_name == 0) {
+            continue;
+        }
+        if (strcmp(p->ifa_name, target) != 0) {
+            continue;
+        }
+        if ((p->ifa_flags & IFF_UP) != 0) {
+            up = 1;
+        }
+        if ((p->ifa_flags & IFF_LOOPBACK) != 0) {
+            lo = 1;
+        }
+        if (p->ifa_addr == 0) {
+            continue;
+        }
+        if (p->ifa_addr->sa_family == AF_LINK) {
+            if (mac[0] == '\0') {
+                struct sockaddr_dl *s = (struct sockaddr_dl *)p->ifa_addr;
+                unsigned char *a = 0;
+                unsigned int alen = (unsigned int)s->sdl_alen;
+                unsigned int m = 0;
+                unsigned int nonzero = 0;
+                if (alen == 0) {
+                    continue;
+                }
+                if (alen > 6) {
+                    alen = 6;
+                }
+                a = (unsigned char *)LLADDR(s);
+                for (m = 0; m < alen; m++) {
+                    if (a[m] != 0) {
+                        nonzero = 1;
+                    }
+                }
+                if (!nonzero) {
+                    continue; /* loopback/tunnel: no real MAC */
+                }
+                mac[0] = '\0';
+                for (m = 0; m < alen; m++) {
+                    char tmp[4];
+                    snprintf(tmp, sizeof(tmp), "%02x", a[m]);
+                    strcat(mac, tmp);
+                    if (m + 1 < alen) {
+                        strcat(mac, ":");
+                    }
+                }
+            }
+        } else if (p->ifa_addr->sa_family == AF_INET) {
+            if (ipv4[0] == '\0') {
+                char buf[64];
+                struct sockaddr_in *s4 = (struct sockaddr_in *)p->ifa_addr;
+                if (inet_ntop(AF_INET, &s4->sin_addr, buf, sizeof(buf)) != 0) {
+                    strncpy(ipv4, buf, sizeof(ipv4) - 1);
+                    ipv4[sizeof(ipv4) - 1] = '\0';
+                }
+            }
+        } else if (p->ifa_addr->sa_family == AF_INET6) {
+            char buf[128];
+            char *pct = 0;
+            struct sockaddr_in6 *s6 = (struct sockaddr_in6 *)p->ifa_addr;
+            int linklocal = 0;
+            if (inet_ntop(AF_INET6, &s6->sin6_addr, buf, sizeof(buf)) == 0) {
+                continue;
+            }
+            pct = strchr(buf, '%');
+            if (pct != 0) {
+                *pct = '\0';
+            }
+            if (buf[0] == '\0') {
+                continue;
+            }
+            if (v6first[0] == '\0') {
+                strncpy(v6first, buf, sizeof(v6first) - 1);
+                v6first[sizeof(v6first) - 1] = '\0';
+            }
+            linklocal = (buf[0] == 'f' || buf[0] == 'F')
+                && (buf[1] == 'e' || buf[1] == 'E')
+                && buf[2] == '8' && buf[3] == '0' && buf[4] == ':';
+            if (!linklocal && v6pref[0] == '\0') {
+                strncpy(v6pref, buf, sizeof(v6pref) - 1);
+                v6pref[sizeof(v6pref) - 1] = '\0';
+            }
+        }
+    }
+    freeifaddrs(head);
+    v6 = v6pref[0] != '\0' ? v6pref : v6first;
+    snprintf(g_net, sizeof(g_net), "%s|%s|%s|%s|%d|%d",
+        target, mac, ipv4, v6, up, lo);
+    return g_net;
 }

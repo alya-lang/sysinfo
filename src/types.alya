@@ -112,6 +112,24 @@ pub struct PowerInfo
     on_ac: int
 end
 
+## Network interface details ("" when a datum is unavailable).
+##
+## ### Fields
+## - `name`: Interface name (`"Ethernet"`, `"eth0"`, `"en0"`).
+## - `mac`: Lowercase colon-separated MAC (`"aa:bb:cc:dd:ee:ff"`).
+## - `ipv4`: First IPv4 address dotted (`"192.168.1.2"`).
+## - `ipv6`: First IPv6 address, scope-stripped, no brackets.
+## - `is_up`: 1 when the interface is administratively up.
+## - `is_loopback`: 1 for loopback interfaces.
+pub struct NetInterface
+    name: string,
+    mac: string,
+    ipv4: string,
+    ipv6: string,
+    is_up: int,
+    is_loopback: int
+end
+
 ## Current process details.
 ##
 ## ### Fields
@@ -163,7 +181,8 @@ pub struct SystemInfo
     power: PowerInfo,
     proc: ProcInfo,
     uptime_sec: int,
-    locale: string
+    locale: string,
+    net: array
 end
 
 # ───────────────────────────────────────────────────────────────

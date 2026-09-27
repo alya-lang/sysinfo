@@ -227,6 +227,28 @@ pub function format_cpu(info: CpuInfo) -> string
     return "{info.model} x{cores}"
 end
 
+## Formats one network interface ("eth0 192.168.1.2 aa:bb:.. [up]").
+pub function format_net(nic: NetInterface) -> string
+    let s = nic.name
+    if len(nic.ipv4) > 0
+        s = s + " " + nic.ipv4
+    end
+    if len(nic.ipv6) > 0
+        s = s + " " + nic.ipv6
+    end
+    if len(nic.mac) > 0
+        s = s + " " + nic.mac
+    end
+    if nic.is_loopback == 1
+        s = s + " [loopback]"
+    elif nic.is_up == 1
+        s = s + " [up]"
+    else
+        s = s + " [down]"
+    end
+    return s
+end
+
 ## Formats a full multi-line system snapshot.
 pub function format_system_summary(info: SystemInfo) -> string
     let mem = format_mem(info.mem)

@@ -69,6 +69,16 @@ function main()
     say "BCP47:   " + loc.bcp47 + " (lang=" + loc.lang + ", region=" + loc.region + ")"
     say ""
 
+    say "--- 7b. Network ---"
+    let nics = pkg::net_interfaces()
+    say "Ifaces:  " + str(len(nics))
+    let ni = 0
+    while ni < len(nics) and ni < 6
+        say "  - " + pkg::format_net(nics[ni])
+        ni += 1
+    end
+    say ""
+
     say "--- 8. Full Snapshot ---"
     say pkg::summary()
     say ""

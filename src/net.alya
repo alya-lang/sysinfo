@@ -1,0 +1,88 @@
+## # sysinfo/net
+##
+## Network interface enumeration for Alya.
+## Part of the Alya Language package ecosystem (https://github.com/alya-lang).
+
+import "./types.alya"
+import "./ffi.alya"
+import "./core/strutil.alya"
+
+## Returns the number of enumerated network interfaces (-1 on failure).
+pub function net_count() -> int
+    return sysinfo_net_count()
+end
+
+## Parses one "name|mac|ipv4|ipv6|up|loopback" native entry.
+function parse_net_entry(entry: string) -> NetInterface
+    let parts = split(entry, "|")
+    let name = ""
+    let mac = ""
+    let ipv4 = ""
+    let ipv6 = ""
+    let up = 0
+    let loop = 0
+    if len(parts) > 0
+        name = parts[0]
+    end
+    if len(parts) > 1
+        mac = parts[1]
+    end
+    if len(parts) > 2
+        ipv4 = parts[2]
+    end
+    if len(parts) > 3
+        ipv6 = parts[3]
+    end
+    if len(parts) > 4 and parts[4] == "1"
+        up = 1
+    end
+    if len(parts) > 5 and parts[5] == "1"
+        loop = 1
+    end
+    return NetInterface {
+        name: name,
+        mac: mac,
+        ipv4: ipv4,
+        ipv6: ipv6,
+        is_up: up,
+        is_loopback: loop
+    }
+end
+
+## Returns interface records for every enumerated adapter.
+##
+## Tolerates native index skew like mounts(): entries that fail to parse
+## are skipped, so output length may be < net_count().
+pub function net_interfaces() -> array
+    let out = []
+    let n = net_count()
+    if n < 0
+        return out
+    end
+    let i = 0
+    while i < n
+        let entry = str_owned(sysinfo_net_at(i))
+        if len(entry) > 0
+            let nic = parse_net_entry(entry)
+            if len(nic.name) > 0
+                out.push(nic)
+            end
+        end
+        i += 1
+    end
+    return out
+end
+
+## Returns the loopback interface record, or null when absent.
+pub function net_loopback()
+    let nics = net_interfaces()
+    let i = 0
+    while i < len(nics)
+        let nic: NetInterface = nics[i]
+        if nic.is_loopback == 1
+            return nic
+        end
+        i += 1
+    end
+    return null
+end

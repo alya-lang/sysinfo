@@ -237,6 +237,19 @@ function main()
     runner_assert_eq(r, c_sum, 42, "pkg::c_add executes bundled C code")
 
     # ═══════════════════════════════════════════════════════════
+    # 18b. Network interfaces
+    # ═══════════════════════════════════════════════════════════
+    runner_assert_true(r, pkg::net_count() >= 1, "at least one interface enumerated")
+    let nics = pkg::net_interfaces()
+    runner_assert_true(r, len(nics) >= 1, "net_interfaces returns entries")
+    let lo = pkg::net_loopback()
+    runner_assert_true(r, lo != null, "loopback interface present")
+    if lo != null
+        runner_assert_str_eq(r, lo.ipv4, "127.0.0.1", "loopback IPv4")
+        runner_assert_true(r, len(pkg::format_net(lo)) > 0, "format_net non-empty")
+    end
+
+    # ═══════════════════════════════════════════════════════════
     # 19. Accuracy fixes: decimals, duration minutes, TZ mapping
     # ═══════════════════════════════════════════════════════════
     runner_assert_str_eq(r, pkg::format_bytes(16642998272), "15.5 GB", "format_bytes one decimal")

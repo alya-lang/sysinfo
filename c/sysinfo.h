@@ -56,5 +56,11 @@ int sysinfo_env_truncated(void);
 const char *sysinfo_user_name(void);
 /* Native hostname via gethostname(); "" on failure. */
 const char *sysinfo_host_native(void);
+/* Network interface enumeration (getifaddrs / GetAdaptersAddresses).
+ * sysinfo_net_at(i) returns "name|mac|ipv4|ipv6|up|loopback" with lowercase
+ * colon-separated mac ("" when none), dotted IPv4 ("" when none),
+ * scope-stripped IPv6 ("" when none), and 0/1 flags. "" on failure/OOB. */
+int sysinfo_net_count(void);
+const char *sysinfo_net_at(int index);
 
 #endif

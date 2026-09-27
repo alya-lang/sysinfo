@@ -1,5 +1,8 @@
 #include "sysinfo.h"
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <windows.h>
+#include <iphlpapi.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -72,7 +75,8 @@ const char *sysinfo_os_version(void) {
                 }
                 /* Enrich with registry EditionID/DisplayVersion; the version
                  * label stays authoritative because ProductName can lag it
-                 * (e.g. "Windows 10 Education" on 11-series builds). */
+                 * (e.g. "Windows 10 Education" on 11-series builds).
+                 * Server SKUs get build-mapped labels (2016/2019/2022/2025). */
                 {
                     char edition[64] = { 0 };
                     char display[64] = { 0 };
@@ -95,6 +99,19 @@ const char *sysinfo_os_version(void) {
                     }
                     edition[sizeof(edition) - 1] = '\0';
                     display[sizeof(display) - 1] = '\0';
+                    if (strncmp(edition, "Server", 6) == 0) {
+                        if (vi.build >= 26100) {
+                            label = "Windows Server 2025";
+                        } else if (vi.build >= 20348) {
+                            label = "Windows Server 2022";
+                        } else if (vi.build >= 17763) {
+                            label = "Windows Server 2019";
+                        } else if (vi.build >= 14393) {
+                            label = "Windows Server 2016";
+                        } else {
+                            label = "Windows Server";
+                        }
+                    }
                     if (edition[0] != '\0' && display[0] != '\0') {
                         snprintf(g_ver, sizeof(g_ver), "%s %s %s (%lu.%lu.%lu)",
                             label, edition, display, vi.major, vi.minor, vi.build);
@@ -634,4 +651,180 @@ const char *sysinfo_host_native(void) {
         return "";
     }
     return g_host_native;
+}
+
+/* Enumerate adapters via GetAdaptersAddresses. Returns a malloc'd list
+ * the caller must free, or 0 on any failure. */
+static IP_ADAPTER_ADDRESSES *win32_net_enum(void) {
+    ULONG size = 0;
+    DWORD rc;
+    IP_ADAPTER_ADDRESSES *list;
+    rc = GetAdaptersAddresses(AF_UNSPEC,
+        GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER,
+        0, 0, &size);
+    (void)rc;
+    if (size == 0) {
+        return 0;
+    }
+    list = (IP_ADAPTER_ADDRESSES*)malloc(size);
+    if (!list) {
+        return 0;
+    }
+    rc = GetAdaptersAddresses(AF_UNSPEC,
+        GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER,
+        0, list, &size);
+    if (rc == ERROR_BUFFER_OVERFLOW) {
+        /* Retry once with the new size. */
+        IP_ADAPTER_ADDRESSES *retry;
+        free(list);
+        if (size == 0) {
+            return 0;
+        }
+        retry = (IP_ADAPTER_ADDRESSES*)malloc(size);
+        if (!retry) {
+            return 0;
+        }
+        list = retry;
+        rc = GetAdaptersAddresses(AF_UNSPEC,
+            GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER,
+            0, list, &size);
+    }
+    if (rc != NO_ERROR) {
+        free(list);
+        return 0;
+    }
+    return list;
+}
+
+int sysinfo_net_count(void) {
+    IP_ADAPTER_ADDRESSES *list = win32_net_enum();
+    IP_ADAPTER_ADDRESSES *a;
+    int n = 0;
+    if (!list) {
+        return -1;
+    }
+    for (a = list; a != 0; a = a->Next) {
+        n++;
+    }
+    free(list);
+    return n;
+}
+
+static char g_net[512];
+
+const char *sysinfo_net_at(int index) {
+    IP_ADAPTER_ADDRESSES *list;
+    IP_ADAPTER_ADDRESSES *a = 0;
+    PIP_ADAPTER_UNICAST_ADDRESS ua;
+    char name[256] = { 0 };
+    char mac[32] = { 0 };
+    char ipv4[64] = { 0 };
+    char ipv6[64] = { 0 };
+    const char *up;
+    const char *loop;
+    int i = 0;
+    WSADATA wsa;
+    if (index < 0) {
+        return "";
+    }
+    list = win32_net_enum();
+    if (!list) {
+        return "";
+    }
+    for (a = list; a != 0; a = a->Next) {
+        if (i == index) {
+            break;
+        }
+        i++;
+    }
+    if (!a) {
+        free(list);
+        return "";
+    }
+    /* FriendlyName -> UTF-8. */
+    if (a->FriendlyName != 0) {
+        if (WideCharToMultiByte(CP_UTF8, 0, a->FriendlyName, -1,
+                name, (int)sizeof(name), 0, 0) == 0) {
+            name[0] = '\0';
+        } else {
+            name[sizeof(name) - 1] = '\0';
+        }
+    } else {
+        name[0] = '\0';
+    }
+    /* MAC: lowercase colon-separated hex, "" when length is 0. */
+    if (a->PhysicalAddressLength > 0 &&
+            a->PhysicalAddressLength <= (ULONG)sizeof(a->PhysicalAddress)) {
+        size_t pos = 0;
+        ULONG k;
+        for (k = 0; k < a->PhysicalAddressLength; k++) {
+            int n;
+            if (k == 0) {
+                n = snprintf(mac + pos, sizeof(mac) - pos, "%02x",
+                    (unsigned)a->PhysicalAddress[k]);
+            } else {
+                n = snprintf(mac + pos, sizeof(mac) - pos, ":%02x",
+                    (unsigned)a->PhysicalAddress[k]);
+            }
+            if (n < 0 || (size_t)n >= sizeof(mac) - pos) {
+                mac[0] = '\0';
+                break;
+            }
+            pos += (size_t)n;
+        }
+    } else {
+        mac[0] = '\0';
+    }
+    /* First unicast IPv4 / IPv6 (scope suffix stripped). */
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) == 0) {
+        int have4 = 0;
+        int have6 = 0;
+        for (ua = a->FirstUnicastAddress;
+                ua != 0 && (!have4 || !have6);
+                ua = ua->Next) {
+            int family;
+            if (ua->Address.lpSockaddr == 0) {
+                continue;
+            }
+            if (ua->Address.iSockaddrLength <= 0) {
+                continue;
+            }
+            family = ua->Address.lpSockaddr->sa_family;
+            if (family == AF_INET && !have4) {
+                char tmp[64];
+                DWORD len = (DWORD)sizeof(tmp);
+                if (WSAAddressToStringA(ua->Address.lpSockaddr,
+                        (DWORD)ua->Address.iSockaddrLength,
+                        0, tmp, &len) == 0) {
+                    tmp[sizeof(tmp) - 1] = '\0';
+                    strncpy(ipv4, tmp, sizeof(ipv4) - 1);
+                    ipv4[sizeof(ipv4) - 1] = '\0';
+                    have4 = 1;
+                }
+            } else if (family == AF_INET6 && !have6) {
+                char tmp[64];
+                DWORD len = (DWORD)sizeof(tmp);
+                if (WSAAddressToStringA(ua->Address.lpSockaddr,
+                        (DWORD)ua->Address.iSockaddrLength,
+                        0, tmp, &len) == 0) {
+                    char *pct;
+                    tmp[sizeof(tmp) - 1] = '\0';
+                    pct = strchr(tmp, '%');
+                    if (pct != 0) {
+                        *pct = '\0';
+                    }
+                    strncpy(ipv6, tmp, sizeof(ipv6) - 1);
+                    ipv6[sizeof(ipv6) - 1] = '\0';
+                    have6 = 1;
+                }
+            }
+        }
+        WSACleanup();
+    }
+    up = (a->OperStatus == IfOperStatusUp) ? "1" : "0";
+    loop = (a->IfType == IF_TYPE_SOFTWARE_LOOPBACK) ? "1" : "0";
+    snprintf(g_net, sizeof(g_net), "%s|%s|%s|%s|%s|%s",
+        name, mac, ipv4, ipv6, up, loop);
+    free(list);
+    return g_net;
 }
