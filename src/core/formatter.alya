@@ -113,7 +113,8 @@ end
 
 ## Formats a UTC offset in minutes as "UTC+3", "UTC-5:30", "UTC" ("unknown" for -32768).
 ## The -32768 sentinel (unknown) never renders as "UTC".
-pub function format_utc_offset(offset_min: int) -> string    if offset_min == -32768
+pub function format_utc_offset(offset_min: int) -> string
+    if offset_min == -32768
         return "unknown"
     end
     if offset_min == 0
