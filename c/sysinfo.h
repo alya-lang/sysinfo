@@ -62,5 +62,9 @@ const char *sysinfo_host_native(void);
  * scope-stripped IPv6 ("" when none), and 0/1 flags. "" on failure/OOB. */
 int sysinfo_net_count(void);
 const char *sysinfo_net_at(int index);
+/* Cumulative octet counters snapshot: lines "name|rxbytes|txbytes"
+ * (decimal u64, one line per interface, "" on failure). Names match
+ * sysinfo_net_at() so snapshots join cleanly. */
+const char *sysinfo_net_counters_all(void);
 
 #endif

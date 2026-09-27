@@ -249,6 +249,19 @@ pub function format_net(nic: NetInterface) -> string
     return s
 end
 
+## Formats one throughput record ("Wi-Fi down 12.4 KB/s up 3.1 KB/s"; "?" rates when -1).
+pub function format_net_rate(r: NetRate) -> string
+    let down = "?"
+    let up = "?"
+    if r.rx_bps >= 0
+        down = format_bytes(r.rx_bps) + "/s"
+    end
+    if r.tx_bps >= 0
+        up = format_bytes(r.tx_bps) + "/s"
+    end
+    return "{r.name} down {down} up {up}"
+end
+
 ## Formats a full multi-line system snapshot.
 pub function format_system_summary(info: SystemInfo) -> string
     let mem = format_mem(info.mem)

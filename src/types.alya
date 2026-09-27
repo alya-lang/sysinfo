@@ -130,6 +130,18 @@ pub struct NetInterface
     is_loopback: int
 end
 
+## Per-interface throughput over one sampling window.
+##
+## ### Fields
+## - `name`: Interface name matching `NetInterface.name`.
+## - `rx_bps`: Download bytes/sec (-1 when unmeasurable).
+## - `tx_bps`: Upload bytes/sec (-1 when unmeasurable).
+pub struct NetRate
+    name: string,
+    rx_bps: int,
+    tx_bps: int
+end
+
 ## Current process details.
 ##
 ## ### Fields

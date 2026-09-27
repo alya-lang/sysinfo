@@ -3,6 +3,7 @@
 #include <ws2tcpip.h>
 #include <windows.h>
 #include <iphlpapi.h>
+#include <netioapi.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -827,4 +828,77 @@ const char *sysinfo_net_at(int index) {
         name, mac, ipv4, ipv6, up, loop);
     free(list);
     return g_net;
+}
+
+static char g_net_counters[16384];
+
+const char *sysinfo_net_counters_all(void) {
+    IP_ADAPTER_ADDRESSES *list;
+    IP_ADAPTER_ADDRESSES *a;
+    PMIB_IF_TABLE2 tbl = 0;
+    size_t pos = 0;
+    g_net_counters[0] = '\0';
+    list = win32_net_enum();
+    if (!list) {
+        return "";
+    }
+    if (GetIfTable2(&tbl) != NO_ERROR || tbl == 0) {
+        free(list);
+        return "";
+    }
+    for (a = list; a != 0; a = a->Next) {
+        MIB_IF_ROW2 *row = 0;
+        ULONG i;
+        char name[256] = { 0 };
+        char line[512];
+        int n;
+        size_t need;
+        size_t k;
+        if (tbl == 0) {
+            break;
+        }
+        for (i = 0; i < tbl->NumEntries; i++) {
+            if (tbl->Table[i].InterfaceIndex == a->IfIndex) {
+                row = &tbl->Table[i];
+                break;
+            }
+        }
+        if (!row) {
+            continue;
+        }
+        if (a->FriendlyName != 0) {
+            if (WideCharToMultiByte(CP_UTF8, 0, a->FriendlyName, -1,
+                    name, (int)sizeof(name), 0, 0) == 0) {
+                name[0] = '\0';
+            } else {
+                name[sizeof(name) - 1] = '\0';
+            }
+        } else {
+            name[0] = '\0';
+        }
+        n = snprintf(line, sizeof(line), "%s|%llu|%llu",
+            name, (unsigned long long)row->InOctets,
+            (unsigned long long)row->OutOctets);
+        if (n < 0) {
+            continue;
+        }
+        if ((size_t)n >= sizeof(line)) {
+            n = (int)sizeof(line) - 1;
+            line[n] = '\0';
+        }
+        need = (size_t)n + (pos > 0 ? 1 : 0) + 1;
+        if (pos + need > sizeof(g_net_counters)) {
+            break;
+        }
+        if (pos > 0) {
+            g_net_counters[pos++] = '\n';
+        }
+        for (k = 0; k < (size_t)n; k++) {
+            g_net_counters[pos++] = line[k];
+        }
+        g_net_counters[pos] = '\0';
+    }
+    free(list);
+    FreeMibTable(tbl);
+    return g_net_counters;
 }

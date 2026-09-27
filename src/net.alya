@@ -6,6 +6,7 @@
 import "./types.alya"
 import "./ffi.alya"
 import "./core/strutil.alya"
+import "std/time" as time
 
 ## Returns the number of enumerated network interfaces (-1 on failure).
 pub function net_count() -> int
@@ -85,4 +86,100 @@ pub function net_loopback()
         i += 1
     end
     return null
+end
+
+## Parses one "name|rx|tx" snapshot line into name + counters.
+## Returns an empty map when the line is malformed.
+function parse_counter_line(line: string) -> map
+    let bad = { "name": "", "rx": -1, "tx": -1 }
+    let parts = split(line, "|")
+    if len(parts) != 3 or len(parts[0]) == 0
+        return bad
+    end
+    return { "name": parts[0], "rx": to_int(parts[1]), "tx": to_int(parts[2]) }
+end
+
+## Takes one octet-counter snapshot keyed by interface name.
+function snap_counters() -> map
+    let snap = {}
+    let raw = str_owned(sysinfo_net_counters_all())
+    if len(raw) == 0
+        return snap
+    end
+    let lines = split(raw, "\n")
+    let i = 0
+    while i < len(lines)
+        let e = parse_counter_line(trim(lines[i]))
+        if len(e["name"]) > 0 and e["rx"] >= 0 and e["tx"] >= 0
+            snap[e["name"]] = [e["rx"], e["tx"]]
+        end
+        i += 1
+    end
+    return snap
+end
+
+## Measures per-interface throughput over one interval.
+##
+## Samples cumulative octet counters, waits `interval_ms`, samples again,
+## and reports bytes/sec per interface present in both snapshots. Counter
+## resets/wraps clamp to 0 for that interval. Elapsed time is measured
+## (not assumed) so slow timers don't skew the rate.
+##
+## ### Parameters
+## - `interval_ms`: Sampling window in milliseconds (default 1000).
+##
+## ### Returns
+## Array of `NetRate` records (possibly empty on failure).
+pub function net_rates(interval_ms: int = 1000) -> array
+    let out = []
+    let wait = interval_ms
+    if wait < 50
+        wait = 50
+    end
+    let a = snap_counters()
+    let t0 = time::now_ms()
+    time::delay(wait)
+    let elapsed = time::now_ms() - t0
+    if elapsed <= 0
+        elapsed = wait
+    end
+    let b = snap_counters()
+    let names = a.keys()
+    let i = 0
+    while i < len(names)
+        let nm = names[i]
+        if has(b, nm)
+            let pa = a[nm]
+            let pb = b[nm]
+            let drx = pb[0] - pa[0]
+            let dtx = pb[1] - pa[1]
+            if drx < 0
+                drx = 0
+            end
+            if dtx < 0
+                dtx = 0
+            end
+            out.push(NetRate {
+                name: nm,
+                rx_bps: drx * 1000 / elapsed,
+                tx_bps: dtx * 1000 / elapsed
+            })
+        end
+        i += 1
+    end
+    return out
+end
+
+## Measures throughput for one interface (bytes/sec, -1 rates on failure).
+pub function net_rate(name: string, interval_ms: int = 1000) -> NetRate
+    let rates = net_rates(interval_ms)
+    let i = 0
+    while i < len(rates)
+        let r: NetRate = rates[i]
+        if r.name == name
+            return r
+        end
+        i += 1
+    end
+    return NetRate { name: name, rx_bps: -1, tx_bps: -1 }
 end

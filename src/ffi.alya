@@ -35,6 +35,7 @@ extern "C" from "sysinfo"
     function sysinfo_mount_at(index: i32) -> str
     function sysinfo_net_count() -> i32
     function sysinfo_net_at(index: i32) -> str
+    function sysinfo_net_counters_all() -> str
     function sysinfo_fs_type(path: str) -> str
     function sysinfo_is_elevated() -> i32
     function sysinfo_user_name() -> str

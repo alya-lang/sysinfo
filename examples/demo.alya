@@ -77,6 +77,13 @@ function main()
         say "  - " + pkg::format_net(nics[ni])
         ni += 1
     end
+    say "--- 7c. Throughput (1s sample) ---"
+    let rates = pkg::net_rates(1000)
+    let ri = 0
+    while ri < len(rates)
+        say "  - " + pkg::format_net_rate(rates[ri])
+        ri += 1
+    end
     say ""
 
     say "--- 8. Full Snapshot ---"

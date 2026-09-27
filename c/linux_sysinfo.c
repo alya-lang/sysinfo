@@ -219,6 +219,7 @@ int sysinfo_utc_offset_min(void) {
 
 #include <sys/utsname.h>
 #include <sys/vfs.h>
+#include <dirent.h>
 
 static char g_kernel[256];
 
@@ -893,4 +894,65 @@ const char *sysinfo_net_at(int index) {
     snprintf(g_net, sizeof(g_net), "%s|%s|%s|%s|%d|%d",
         target, mac, ipv4, v6, up, lo);
     return g_net;
+}
+
+static char g_net_counters[16384];
+
+const char *sysinfo_net_counters_all(void) {
+    DIR *d = 0;
+    struct dirent *e = 0;
+    size_t pos = 0;
+    g_net_counters[0] = '\0';
+    d = opendir("/sys/class/net");
+    if (d == 0) {
+        return "";
+    }
+    while ((e = readdir(d)) != 0) {
+        char prx[512];
+        char ptx[512];
+        FILE *f = 0;
+        unsigned long long rx = 0;
+        unsigned long long tx = 0;
+        const char *sep = 0;
+        size_t rem = 0;
+        int n = 0;
+        if (strcmp(e->d_name, ".") == 0 || strcmp(e->d_name, "..") == 0) {
+            continue;
+        }
+        snprintf(prx, sizeof(prx), "/sys/class/net/%s/statistics/rx_bytes", e->d_name);
+        snprintf(ptx, sizeof(ptx), "/sys/class/net/%s/statistics/tx_bytes", e->d_name);
+        f = fopen(prx, "r");
+        if (f == 0) {
+            continue;
+        }
+        n = fscanf(f, "%llu", &rx);
+        fclose(f);
+        if (n != 1) {
+            continue;
+        }
+        f = fopen(ptx, "r");
+        if (f == 0) {
+            continue;
+        }
+        n = fscanf(f, "%llu", &tx);
+        fclose(f);
+        if (n != 1) {
+            continue;
+        }
+        sep = (pos == 0) ? "" : "\n";
+        rem = sizeof(g_net_counters) - pos;
+        n = snprintf(g_net_counters + pos, rem, "%s%s|%llu|%llu",
+            sep, e->d_name, rx, tx);
+        if (n < 0) {
+            g_net_counters[pos] = '\0';
+            break;
+        }
+        if ((size_t)n >= rem) {
+            g_net_counters[pos] = '\0';
+            break;
+        }
+        pos += (size_t)n;
+    }
+    closedir(d);
+    return g_net_counters;
 }

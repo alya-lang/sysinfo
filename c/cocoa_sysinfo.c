@@ -640,3 +640,48 @@ const char *sysinfo_net_at(int index) {
         target, mac, ipv4, v6, up, lo);
     return g_net;
 }
+
+static char g_net_counters[16384];
+
+const char *sysinfo_net_counters_all(void) {
+    struct ifaddrs *head = 0;
+    struct ifaddrs *p = 0;
+    size_t pos = 0;
+    g_net_counters[0] = '\0';
+    if (getifaddrs(&head) != 0) {
+        return "";
+    }
+    for (p = head; p != 0; p = p->ifa_next) {
+        struct if_data *d = 0;
+        const char *sep = 0;
+        size_t rem = 0;
+        int n = 0;
+        if (p->ifa_name == 0 || p->ifa_addr == 0) {
+            continue;
+        }
+        if (p->ifa_addr->sa_family != AF_LINK) {
+            continue;
+        }
+        if (p->ifa_data == 0) {
+            continue;
+        }
+        d = (struct if_data *)p->ifa_data;
+        sep = (pos == 0) ? "" : "\n";
+        rem = sizeof(g_net_counters) - pos;
+        n = snprintf(g_net_counters + pos, rem, "%s%s|%llu|%llu",
+            sep, p->ifa_name,
+            (unsigned long long)d->ifi_ibytes,
+            (unsigned long long)d->ifi_obytes);
+        if (n < 0) {
+            g_net_counters[pos] = '\0';
+            break;
+        }
+        if ((size_t)n >= rem) {
+            g_net_counters[pos] = '\0';
+            break;
+        }
+        pos += (size_t)n;
+    }
+    freeifaddrs(head);
+    return g_net_counters;
+}
