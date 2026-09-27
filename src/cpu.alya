@@ -12,22 +12,22 @@ pub function cpu_arch() -> string
     return target_arch()
 end
 
-## Returns the logical processor count (>= 1).
+## Returns the logical processor count (-1 when unavailable; -1 = unknown).
 pub function cpu_cores() -> int
     let n = sysinfo_cpu_cores()
     if n > 0
         return n
     end
-    return 1
+    return -1
 end
 
-## Returns the physical core count (>= 1, falls back to logical count).
+## Returns the physical core count (-1 when unavailable; -1 = unknown, no fallback to logical).
 pub function cpu_physical() -> int
     let n = sysinfo_cpu_physical()
     if n > 0
         return n
     end
-    return cpu_cores()
+    return -1
 end
 
 ## Returns the base CPU frequency in MHz (-1 when unavailable).

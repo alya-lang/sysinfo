@@ -20,12 +20,18 @@ pub function load_avg_15() -> float
     return sysinfo_load_15()
 end
 
-## Returns 1 when load averages are available, 0 otherwise.
+## Returns 1 when load averages are available (any of load_1/5/15 >= 0), 0 otherwise.
 pub function load_is_known() -> int
-    if sysinfo_load_1() < 0.0
-        return 0
+    if load_avg_1() >= 0.0
+        return 1
     end
-    return 1
+    if load_avg_5() >= 0.0
+        return 1
+    end
+    if load_avg_15() >= 0.0
+        return 1
+    end
+    return 0
 end
 
 ## Returns [1min, 5min, 15min] load averages.

@@ -8,25 +8,40 @@ import "./ffi.alya"
 import "./core/strutil.alya"
 
 ## Returns the machine hostname ("" when unavailable).
+## Resolution order: native sysinfo_host_native() -> legacy sysinfo_host_name() ->
+## COMPUTERNAME env (Windows only) -> HOSTNAME env.
 pub function host_name() -> string
-    let n = sysinfo_host_name()
+    let n = str_owned(sysinfo_host_native())
     if len(n) > 0
-        return str_owned(n)
+        return n
+    end
+    let legacy = str_owned(sysinfo_host_name())
+    if len(legacy) > 0
+        return legacy
     end
     if target_os() == "windows"
-        return str_owned(get_env("COMPUTERNAME"))
+        let c = str_owned(get_env("COMPUTERNAME"))
+        if len(c) > 0
+            return c
+        end
     end
     return str_owned(get_env("HOSTNAME"))
 end
 
 ## Returns the current user name ("" when unavailable).
+## Resolution order: native sysinfo_user_name() -> USERNAME -> USER -> LOGNAME env.
 pub function host_user() -> string
-    if target_os() == "windows"
-        return str_owned(get_env("USERNAME"))
+    let n = str_owned(sysinfo_user_name())
+    if len(n) > 0
+        return n
     end
-    let u = get_env("USER")
+    let a = str_owned(get_env("USERNAME"))
+    if len(a) > 0
+        return a
+    end
+    let u = str_owned(get_env("USER"))
     if len(u) > 0
-        return str_owned(u)
+        return u
     end
     return str_owned(get_env("LOGNAME"))
 end

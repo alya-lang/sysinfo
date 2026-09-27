@@ -91,8 +91,8 @@ function main()
     runner_assert_str_eq(r, pkg::normalize_locale("en-US"), "en-US", "normalize keeps en-US")
     runner_assert_str_eq(r, pkg::normalize_locale("en_US"), "en-US", "normalize en_US to en-US")
     runner_assert_str_eq(r, pkg::normalize_locale("tr:en"), "tr", "normalize takes first LANGUAGE entry")
-    runner_assert_str_eq(r, pkg::normalize_locale("POSIX"), "", "normalize maps POSIX to empty")
-    runner_assert_str_eq(r, pkg::normalize_locale("C"), "", "normalize maps C to empty")
+    runner_assert_str_eq(r, pkg::normalize_locale("POSIX"), "POSIX", "normalize preserves POSIX distinctly")
+    runner_assert_str_eq(r, pkg::normalize_locale("C"), "C", "normalize preserves C distinctly")
     let fixed_loc = pkg::make_locale_info("tr-TR")
     runner_assert_str_eq(r, fixed_loc.bcp47, "tr-TR", "make_locale_info bcp47")
     runner_assert_str_eq(r, fixed_loc.lang, "tr", "make_locale_info lang")
@@ -233,6 +233,25 @@ function main()
     # 18. Native C FFI verification
     let c_sum = pkg::c_add(10, 32)
     runner_assert_eq(r, c_sum, 42, "pkg::c_add executes bundled C code")
+
+    # ═══════════════════════════════════════════════════════════
+    # 19. Accuracy fixes: decimals, duration minutes, TZ mapping
+    # ═══════════════════════════════════════════════════════════
+    runner_assert_str_eq(r, pkg::format_bytes(16642998272), "15.5 GB", "format_bytes one decimal")
+    runner_assert_str_eq(r, pkg::format_bytes(16106127360), "15 GB", "format_bytes exact stays clean")
+    runner_assert_str_eq(r, pkg::format_duration(262800), "3d 1h", "format_duration exact days")
+    runner_assert_str_eq(r, pkg::format_duration(265200), "3d 1h 40m", "format_duration keeps minutes")
+    runner_assert_str_eq(r, pkg::format_duration(-1), "unknown", "format_duration unknown")
+    runner_assert_str_eq(r, pkg::format_unix_date(1790246765), "2026-09-24 10:46 UTC", "format_unix_date renders boot time")
+    runner_assert_str_eq(r, pkg::format_unix_date(0), "1970-01-01 00:00 UTC", "format_unix_date epoch")
+    runner_assert_str_eq(r, pkg::format_unix_date(-1), "unknown", "format_unix_date unknown")    runner_assert_str_eq(r, pkg::tz_iana("Turkey Standard Time"), "Europe/Istanbul", "tz_iana maps Windows key")
+    runner_assert_str_eq(r, pkg::tz_iana("Europe/Istanbul"), "Europe/Istanbul", "tz_iana passes IANA through")
+    runner_assert_str_eq(r, pkg::tz_iana("No Such Zone"), "", "tz_iana unknown is empty")
+    runner_assert_true(r, pkg::mem_estimated() == 0 or pkg::mem_estimated() == 1, "mem_estimated is 0 or 1")
+    runner_assert_true(r, pkg::env_truncated() == 0 or pkg::env_truncated() == 1, "env_truncated is 0 or 1")
+    runner_assert_true(r, len(pkg::host_user()) > 0, "host_user returns non-empty string")
+    let tz = pkg::tz_info()
+    runner_assert_true(r, tz.offset_min > -32768 or tz.iana != "" or tz.name != "", "tz_info populated")
 
     let failed = runner_summary(r)
     if failed > 0

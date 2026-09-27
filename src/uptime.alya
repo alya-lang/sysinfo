@@ -5,28 +5,36 @@
 
 import "./ffi.alya"
 
-## Returns seconds since boot (0 when unavailable).
+## Returns seconds since boot (-1 when unavailable; never coerced to 0).
 pub function uptime_sec() -> int
-    let s = sysinfo_uptime_sec()
-    if s < 0
-        return 0
-    end
-    return s
+    return sysinfo_uptime_sec()
 end
 
-## Returns whole minutes since boot.
+## Returns whole minutes since boot (-1 when unavailable).
 pub function uptime_min() -> int
-    return uptime_sec() / 60
+    let s = uptime_sec()
+    if s < 0
+        return -1
+    end
+    return s / 60
 end
 
-## Returns whole hours since boot.
+## Returns whole hours since boot (-1 when unavailable).
 pub function uptime_hours() -> int
-    return uptime_sec() / 3600
+    let s = uptime_sec()
+    if s < 0
+        return -1
+    end
+    return s / 3600
 end
 
-## Returns whole days since boot.
+## Returns whole days since boot (-1 when unavailable).
 pub function uptime_days() -> int
-    return uptime_sec() / 86400
+    let s = uptime_sec()
+    if s < 0
+        return -1
+    end
+    return s / 86400
 end
 
 ## Returns the Unix timestamp of the last boot (-1 when unavailable).

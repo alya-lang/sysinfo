@@ -47,8 +47,12 @@ function main()
     say "Host:    " + host.hostname
     say "User:    " + host.username + " (elevated=" + str(pkg::elevated()) + ")"
     let tz = pkg::tz_info()
-    say "TZ:      " + tz.name + " (" + pkg::format_utc_offset(tz.offset_min) + ")"
-    say "Uptime:  " + pkg::format_duration(pkg::uptime_sec()) + " (boot " + str(pkg::boot_time()) + ")"
+    let tz_line = "TZ:      " + tz.name + " (" + pkg::format_utc_offset(tz.offset_min) + ")"
+    if len(tz.iana) > 0 and tz.iana != tz.name
+        tz_line = "TZ:      " + tz.name + " [" + tz.iana + "] (" + pkg::format_utc_offset(tz.offset_min) + ")"
+    end
+    say tz_line
+    say "Uptime:  " + pkg::format_duration(pkg::uptime_sec()) + " (boot " + pkg::format_unix_date(pkg::boot_time()) + ")"
     say "Power:   " + pkg::format_power(pkg::power_info())
     say "Proc:    " + str(pkg::proc_pid()) + " " + pkg::exe_path()
     say "Env:     " + str(pkg::env_len()) + " vars"

@@ -4,13 +4,23 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifndef ALL_PROCESSOR_GROUPS
+#define ALL_PROCESSOR_GROUPS 0xffff
+#endif
+
 int sysinfo_cpu_cores(void) {
-    SYSTEM_INFO si;
-    GetSystemInfo(&si);
-    if (si.dwNumberOfProcessors < 1) {
-        return 1;
+    /* GetActiveProcessorCount spans all NUMA groups (>64 LPs);
+     * GetSystemInfo().dwNumberOfProcessors is limited to one group. */
+    DWORD n = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+    if (n < 1) {
+        SYSTEM_INFO si;
+        GetSystemInfo(&si);
+        if (si.dwNumberOfProcessors < 1) {
+            return 1;
+        }
+        return (int)si.dwNumberOfProcessors;
     }
-    return (int)si.dwNumberOfProcessors;
+    return (int)n;
 }
 
 long long sysinfo_mem_total(void) {
@@ -60,8 +70,42 @@ const char *sysinfo_os_version(void) {
                 } else if (vi.major == 6 && vi.minor == 1) {
                     label = "Windows 7";
                 }
-                snprintf(g_ver, sizeof(g_ver), "%s (%lu.%lu.%lu)",
-                    label, vi.major, vi.minor, vi.build);
+                /* Enrich with registry EditionID/DisplayVersion; the version
+                 * label stays authoritative because ProductName can lag it
+                 * (e.g. "Windows 10 Education" on 11-series builds). */
+                {
+                    char edition[64] = { 0 };
+                    char display[64] = { 0 };
+                    HKEY hk;
+                    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+                            "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",
+                            0, KEY_READ, &hk) == ERROR_SUCCESS) {
+                        DWORD sz = sizeof(edition), t = 0;
+                        if (RegQueryValueExA(hk, "EditionID", 0, &t,
+                                (LPBYTE)edition, &sz) != ERROR_SUCCESS) {
+                            edition[0] = '\0';
+                        }
+                        sz = sizeof(display);
+                        t = 0;
+                        if (RegQueryValueExA(hk, "DisplayVersion", 0, &t,
+                                (LPBYTE)display, &sz) != ERROR_SUCCESS) {
+                            display[0] = '\0';
+                        }
+                        RegCloseKey(hk);
+                    }
+                    edition[sizeof(edition) - 1] = '\0';
+                    display[sizeof(display) - 1] = '\0';
+                    if (edition[0] != '\0' && display[0] != '\0') {
+                        snprintf(g_ver, sizeof(g_ver), "%s %s %s (%lu.%lu.%lu)",
+                            label, edition, display, vi.major, vi.minor, vi.build);
+                    } else if (edition[0] != '\0') {
+                        snprintf(g_ver, sizeof(g_ver), "%s %s (%lu.%lu.%lu)",
+                            label, edition, vi.major, vi.minor, vi.build);
+                    } else {
+                        snprintf(g_ver, sizeof(g_ver), "%s (%lu.%lu.%lu)",
+                            label, vi.major, vi.minor, vi.build);
+                    }
+                }
                 return g_ver;
             }
         }
@@ -72,6 +116,34 @@ const char *sysinfo_os_version(void) {
 static char g_cpu[256];
 
 const char *sysinfo_cpu_model(void) {
+    HKEY h;
+    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+            "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0",
+            0, KEY_READ, &h) == ERROR_SUCCESS) {
+        char name[256];
+        DWORD sz = sizeof(name), t = 0;
+        if (RegQueryValueExA(h, "ProcessorNameString", 0, &t,
+                (LPBYTE)name, &sz) == ERROR_SUCCESS && sz > 1) {
+            RegCloseKey(h);
+            if (sz >= sizeof(name)) {
+                sz = sizeof(name) - 1;
+            }
+            name[sz] = '\0';
+            /* Trim trailing spaces left in the registry string. */
+            size_t len = strlen(name);
+            while (len > 0 && (name[len - 1] == ' ' || name[len - 1] == '\t')) {
+                name[--len] = '\0';
+            }
+            if (name[0] != '\0') {
+                strncpy(g_cpu, name, sizeof(g_cpu) - 1);
+                g_cpu[sizeof(g_cpu) - 1] = '\0';
+                return g_cpu;
+            }
+            return "";
+        }
+        RegCloseKey(h);
+    }
+    /* Fallback to env var only if the registry read fails. */
     const char *s = getenv("PROCESSOR_IDENTIFIER");
     if (s == 0 || s[0] == '\0') {
         return "";
@@ -89,6 +161,17 @@ const char *sysinfo_host_name(void) {
         return "";
     }
     return g_host;
+}
+
+/* Current Unix time (seconds). Shared helper so boot_unix and uptime
+ * stay internally consistent: boot = now - uptime. */
+static long long win32_unix_now(void) {
+    FILETIME ft;
+    GetSystemTimeAsFileTime(&ft);
+    ULARGE_INTEGER t;
+    t.LowPart = ft.dwLowDateTime;
+    t.HighPart = ft.dwHighDateTime;
+    return (long long)(t.QuadPart / 10000000ULL) - 11644473600LL;
 }
 
 long long sysinfo_uptime_sec(void) {
@@ -131,12 +214,20 @@ const char *sysinfo_tz_name(void) {
 }
 
 int sysinfo_utc_offset_min(void) {
-    DYNAMIC_TIME_ZONE_INFORMATION tz;
-    memset(&tz, 0, sizeof(tz));
-    if (GetDynamicTimeZoneInformation(&tz) == TIME_ZONE_ID_INVALID) {
-        return 0;
+    TIME_ZONE_INFORMATION tzi;
+    memset(&tzi, 0, sizeof(tzi));
+    DWORD rc = GetTimeZoneInformation(&tzi);
+    if (rc == TIME_ZONE_ID_INVALID) {
+        /* 0 is a valid UTC offset, so failure uses a distinct sentinel. */
+        return -32768;
     }
-    return -(tz.Bias);
+    LONG effective;
+    if (rc == TIME_ZONE_ID_DAYLIGHT) {
+        effective = (LONG)tzi.Bias + (LONG)tzi.DaylightBias;
+    } else {
+        effective = (LONG)tzi.Bias + (LONG)tzi.StandardBias;
+    }
+    return -(int)effective;
 }
 
 /* ---- Extended detail APIs ---- */
@@ -173,12 +264,43 @@ const char *sysinfo_kernel_version(void) {
     return "";
 }
 
+static char g_distro_id[64];
+static char g_distro_ver[64];
+
 const char *sysinfo_distro_id(void) {
-    return "";
+    HKEY h;
+    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+            "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",
+            0, KEY_READ, &h) != ERROR_SUCCESS) {
+        return "";
+    }
+    DWORD sz = sizeof(g_distro_id), t = 0;
+    if (RegQueryValueExA(h, "EditionID", 0, &t,
+            (LPBYTE)g_distro_id, &sz) != ERROR_SUCCESS) {
+        RegCloseKey(h);
+        return "";
+    }
+    RegCloseKey(h);
+    g_distro_id[sizeof(g_distro_id) - 1] = '\0';
+    return g_distro_id;
 }
 
 const char *sysinfo_distro_version(void) {
-    return "";
+    HKEY h;
+    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+            "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",
+            0, KEY_READ, &h) != ERROR_SUCCESS) {
+        return "";
+    }
+    DWORD sz = sizeof(g_distro_ver), t = 0;
+    if (RegQueryValueExA(h, "DisplayVersion", 0, &t,
+            (LPBYTE)g_distro_ver, &sz) != ERROR_SUCCESS) {
+        RegCloseKey(h);
+        return "";
+    }
+    RegCloseKey(h);
+    g_distro_ver[sizeof(g_distro_ver) - 1] = '\0';
+    return g_distro_ver;
 }
 
 int sysinfo_cpu_physical(void) {
@@ -210,6 +332,33 @@ int sysinfo_cpu_physical(void) {
 }
 
 long long sysinfo_cpu_freq_mhz(void) {
+    /* Scan CentralProcessor\<n> subkeys and return the max ~MHz. */
+    DWORD max_mhz = 0;
+    int any = 0;
+    int i = 0;
+    for (i = 0; i < 64; i++) {
+        char key[128];
+        snprintf(key, sizeof(key),
+            "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\%d", i);
+        HKEY h;
+        if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, key,
+                0, KEY_READ, &h) != ERROR_SUCCESS) {
+            break; /* stop at first missing subkey */
+        }
+        DWORD mhz = 0, sz = sizeof(mhz), t = 0;
+        if (RegQueryValueExA(h, "~MHz", 0, &t,
+                (LPBYTE)&mhz, &sz) == ERROR_SUCCESS && mhz > 0) {
+            any = 1;
+            if (mhz > max_mhz) {
+                max_mhz = mhz;
+            }
+        }
+        RegCloseKey(h);
+    }
+    if (any && max_mhz > 0) {
+        return (long long)max_mhz;
+    }
+    /* Fallback: single read of CPU0 (old behavior). */
     HKEY h;
     if (RegOpenKeyExA(HKEY_LOCAL_MACHINE,
             "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0",
@@ -225,7 +374,8 @@ long long sysinfo_cpu_freq_mhz(void) {
     return (long long)mhz;
 }
 
-static char g_vendor[16];
+/* 12-char CPUID vendor string + NUL; 32 bytes for headroom. */
+static char g_vendor[32];
 
 const char *sysinfo_cpu_vendor(void) {
 #if defined(__i386__) || defined(__x86_64__)
@@ -238,12 +388,9 @@ const char *sysinfo_cpu_vendor(void) {
         return g_vendor;
     }
 #endif
-    const char *arch = getenv("PROCESSOR_ARCHITECTURE");
-    if (arch && arch[0]) {
-        strncpy(g_vendor, arch, sizeof(g_vendor) - 1);
-        g_vendor[sizeof(g_vendor) - 1] = '\0';
-        return g_vendor;
-    }
+    /* No cpuid path (e.g. ARM64) or detection failed: return "".
+     * PROCESSOR_ARCHITECTURE lives in a different namespace, so it
+     * must not be reported as the CPU vendor. */
     return "";
 }
 
@@ -304,16 +451,23 @@ int sysinfo_on_ac(void) {
 static char g_exe[1024];
 
 const char *sysinfo_exe_path(void) {
-    DWORD n = GetModuleFileNameA(0, g_exe, sizeof(g_exe));
-    if (n == 0 || n >= sizeof(g_exe)) {
+    WCHAR w[1024];
+    DWORD n = GetModuleFileNameW(0, w, sizeof(w) / sizeof(w[0]));
+    if (n == 0 || n >= sizeof(w) / sizeof(w[0])) {
+        return "";
+    }
+    if (WideCharToMultiByte(CP_UTF8, 0, w, -1,
+            g_exe, (int)sizeof(g_exe), 0, 0) == 0) {
         return "";
     }
     return g_exe;
 }
 
 static char g_env[65536];
+static int g_env_truncated = 0;
 
 const char *sysinfo_env_block(void) {
+    g_env_truncated = 0;
     char *block = GetEnvironmentStringsA();
     if (block == 0) {
         return "";
@@ -323,6 +477,7 @@ const char *sysinfo_env_block(void) {
     while (*p != '\0' && pos + 1 < sizeof(g_env)) {
         size_t n = strlen(p);
         if (pos + n + 1 >= sizeof(g_env)) {
+            g_env_truncated = 1;
             break;
         }
         memcpy(g_env + pos, p, n);
@@ -331,18 +486,21 @@ const char *sysinfo_env_block(void) {
         p += n + 1;
     }
     g_env[pos] = '\0';
+    if (*p != '\0') {
+        /* Loop exited on a full buffer with entries left over. */
+        g_env_truncated = 1;
+    }
     FreeEnvironmentStringsA(block);
     return g_env;
 }
 
+int sysinfo_env_truncated(void) {
+    return g_env_truncated;
+}
+
 long long sysinfo_boot_unix(void) {
-    FILETIME ft;
-    GetSystemTimeAsFileTime(&ft);
-    ULARGE_INTEGER t;
-    t.LowPart = ft.dwLowDateTime;
-    t.HighPart = ft.dwHighDateTime;
-    long long unix = (long long)(t.QuadPart / 10000000ULL) - 11644473600LL;
-    return unix - sysinfo_uptime_sec();
+    /* boot + uptime == now (uptime is truncated to whole seconds). */
+    return win32_unix_now() - sysinfo_uptime_sec();
 }
 
 double sysinfo_load_1(void) {
@@ -408,7 +566,11 @@ const char *sysinfo_mount_at(int index) {
         return "";
     }
     char fs[64] = { 0 };
-    GetVolumeInformationA(found, 0, 0, 0, 0, 0, fs, sizeof(fs));
+    if (!GetVolumeInformationA(found, 0, 0, 0, 0, 0, fs, sizeof(fs))) {
+        /* Strict: no fs info means no usable mount entry. */
+        free(buf);
+        return "";
+    }
     snprintf(g_mount, sizeof(g_mount), "%s|%s", found, fs);
     free(buf);
     return g_mount;
@@ -428,10 +590,48 @@ int sysinfo_is_elevated(void) {
     PSID admin = 0;
     if (!AllocateAndInitializeSid(&nt, 2, SECURITY_BUILTIN_DOMAIN_RID,
             DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0, 0, &admin)) {
-        return 0;
+        return -1;
     }
     BOOL member = FALSE;
-    CheckTokenMembership(0, admin, &member);
+    if (!CheckTokenMembership(0, admin, &member)) {
+        FreeSid(admin);
+        return -1;
+    }
     FreeSid(admin);
     return member ? 1 : 0;
+}
+
+static char g_user[256];
+
+const char *sysinfo_user_name(void) {
+    WCHAR w[256];
+    DWORD n = sizeof(w) / sizeof(w[0]);
+    if (!GetUserNameW(w, &n)) {
+        return "";
+    }
+    if (WideCharToMultiByte(CP_UTF8, 0, w, -1,
+            g_user, (int)sizeof(g_user), 0, 0) == 0) {
+        return "";
+    }
+    return g_user;
+}
+
+int sysinfo_mem_estimated(void) {
+    /* Windows memory counters are exact, never estimated. */
+    return 0;
+}
+
+static char g_host_native[256];
+
+const char *sysinfo_host_native(void) {
+    WCHAR w[256];
+    DWORD n = sizeof(w) / sizeof(w[0]);
+    if (!GetComputerNameW(w, &n)) {
+        return "";
+    }
+    if (WideCharToMultiByte(CP_UTF8, 0, w, -1,
+            g_host_native, (int)sizeof(g_host_native), 0, 0) == 0) {
+        return "";
+    }
+    return g_host_native;
 }

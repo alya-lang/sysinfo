@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <pwd.h>
 #include <unistd.h>
 #include <time.h>
 #include <CoreFoundation/CoreFoundation.h>
@@ -37,7 +39,18 @@ long long sysinfo_mem_avail(void) {
             (host_info64_t)&vm, &cnt) != KERN_SUCCESS) {
         return -1;
     }
-    return (long long)(vm.free_count + vm.inactive_count) * (long long)page;
+    long long pages = (long long)vm.free_count + (long long)vm.inactive_count;
+#ifndef SYSINFO_NO_SPECULATIVE
+    /* speculative_count has shipped in vm_statistics64 for many SDK
+     * generations; there is no feature macro for a struct member, so
+     * build older SDKs with -DSYSINFO_NO_SPECULATIVE to skip it. */
+    pages += (long long)vm.speculative_count;
+#endif
+    return pages * (long long)page;
+}
+
+int sysinfo_mem_estimated(void) {
+    return 0;
 }
 
 static char g_ver[128];
@@ -170,13 +183,21 @@ int sysinfo_cpu_physical(void) {
     return n;
 }
 
+/* hw.cpufrequency is the current (Intel) clock; hw.cpufrequency_max is the
+ * base/max clock. Apple Silicon omits hw.cpufrequency, so fall back to
+ * hw.cpufrequency_max. Either way this is a base rating, not live turbo. */
 long long sysinfo_cpu_freq_mhz(void) {
     uint64_t hz = 0;
     size_t s = sizeof(hz);
-    if (sysctlbyname("hw.cpufrequency", &hz, &s, 0, 0) != 0 || hz == 0) {
-        return -1;
+    if (sysctlbyname("hw.cpufrequency", &hz, &s, 0, 0) == 0 && hz != 0) {
+        return (long long)(hz / 1000000ULL);
     }
-    return (long long)(hz / 1000000ULL);
+    hz = 0;
+    s = sizeof(hz);
+    if (sysctlbyname("hw.cpufrequency_max", &hz, &s, 0, 0) == 0 && hz != 0) {
+        return (long long)(hz / 1000000ULL);
+    }
+    return -1;
 }
 
 static char g_vendor[128];
@@ -186,7 +207,15 @@ const char *sysinfo_cpu_vendor(void) {
     if (sysctlbyname("machdep.cpu.vendor", g_vendor, &s, 0, 0) == 0) {
         return g_vendor;
     }
-    return "Apple";
+    /* Apple Silicon has no machdep.cpu.vendor; hw.model contains "Mac". */
+    char model[256];
+    s = sizeof(model);
+    if (sysctlbyname("hw.model", model, &s, 0, 0) == 0) {
+        if (strstr(model, "Mac") != 0) {
+            return "Apple";
+        }
+    }
+    return "";
 }
 
 long long sysinfo_swap_total(void) {
@@ -269,10 +298,15 @@ int sysinfo_on_ac(void) {
 
 static char g_exe[2048];
 
+static char g_exe_real[2048];
+
 const char *sysinfo_exe_path(void) {
     uint32_t s = sizeof(g_exe);
     if (_NSGetExecutablePath(g_exe, &s) != 0) {
         return "";
+    }
+    if (realpath(g_exe, g_exe_real) != 0) {
+        return g_exe_real;
     }
     return g_exe;
 }
@@ -281,7 +315,10 @@ extern char **environ;
 
 static char g_env[65536];
 
+static int g_env_truncated = 0;
+
 const char *sysinfo_env_block(void) {
+    g_env_truncated = 0;
     if (environ == 0) {
         return "";
     }
@@ -289,6 +326,7 @@ const char *sysinfo_env_block(void) {
     for (char **e = environ; *e != 0 && pos + 1 < sizeof(g_env); e++) {
         size_t n = strlen(*e);
         if (pos + n + 1 >= sizeof(g_env)) {
+            g_env_truncated = 1;
             break;
         }
         memcpy(g_env + pos, *e, n);
@@ -297,6 +335,10 @@ const char *sysinfo_env_block(void) {
     }
     g_env[pos] = '\0';
     return g_env;
+}
+
+int sysinfo_env_truncated(void) {
+    return g_env_truncated;
 }
 
 long long sysinfo_boot_unix(void) {
@@ -311,13 +353,17 @@ long long sysinfo_boot_unix(void) {
 
 static double load_at(int idx) {
     double avg[3] = { 0, 0, 0 };
-    if (getloadavg(avg, 3) != 3) {
+    int n = getloadavg(avg, 3);
+    if (n < 1) {
         return -1.0;
     }
     if (idx < 0 || idx > 2) {
         return -1.0;
     }
-    return avg[idx];
+    if (idx < n) {
+        return avg[idx];
+    }
+    return -1.0;
 }
 
 double sysinfo_load_1(void) {
@@ -367,4 +413,22 @@ const char *sysinfo_fs_type(const char *path) {
 
 int sysinfo_is_elevated(void) {
     return geteuid() == 0 ? 1 : 0;
+}
+
+const char *sysinfo_user_name(void) {
+    struct passwd *pw = getpwuid(getuid());
+    if (!pw || !pw->pw_name || pw->pw_name[0] == '\0') {
+        return "";
+    }
+    return pw->pw_name;
+}
+
+static char g_host_native[256];
+
+const char *sysinfo_host_native(void) {
+    if (gethostname(g_host_native, sizeof(g_host_native)) != 0) {
+        return "";
+    }
+    g_host_native[sizeof(g_host_native) - 1] = '\0';
+    return g_host_native;
 }

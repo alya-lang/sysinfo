@@ -35,4 +35,8 @@ extern "C" from "sysinfo"
     function sysinfo_mount_at(index: i32) -> str
     function sysinfo_fs_type(path: str) -> str
     function sysinfo_is_elevated() -> i32
+    function sysinfo_user_name() -> str
+    function sysinfo_host_native() -> str
+    function sysinfo_env_truncated() -> i32
+    function sysinfo_mem_estimated() -> i32
 end

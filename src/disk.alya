@@ -17,18 +17,31 @@ pub function disk_default_path() -> string
     end
 end
 
+## Resolves a caller path for native queries: UNC ("\\\\server\\share") and
+## extended-length ("\\\\?\\") Windows paths pass through verbatim (slash
+## conversion would corrupt them); everything else is slash-normalized.
+pub function disk_query_path(path: string) -> string
+    if len(path) >= 4 and path[..4] == "\\\\?\\"
+        return path
+    end
+    if len(path) >= 2 and path[..2] == "\\\\"
+        return path
+    end
+    return to_slash(path)
+end
+
 ## Returns filesystem total size in bytes for path (-1 when unavailable).
 pub function disk_total_bytes(path: string = "") -> int
-    let p = to_slash(path)
+    let p = disk_query_path(path)
     if len(p) == 0
         p = disk_default_path()
     end
     return sysinfo_disk_total(p)
 end
 
-## Returns filesystem available size in bytes for path (-1 when unavailable).
+## Returns filesystem available size in bytes for path (-1 when unavailable; quota-aware avail).
 pub function disk_free_bytes(path: string = "") -> int
-    let p = to_slash(path)
+    let p = disk_query_path(path)
     if len(p) == 0
         p = disk_default_path()
     end
@@ -37,16 +50,17 @@ end
 
 ## Returns the filesystem type for path ("NTFS", "ext4", "" when unavailable).
 pub function fs_type(path: string = "") -> string
-    let p = to_slash(path)
+    let p = disk_query_path(path)
     if len(p) == 0
         p = disk_default_path()
     end
-    return sysinfo_fs_type(p)
+    return str_owned(sysinfo_fs_type(p))
 end
 
 ## Collects disk usage for path into a DiskUsage record.
+## `free_bytes` is quota-aware available space (see DiskUsage docs).
 pub function disk_usage(path: string = "") -> DiskUsage
-    let p = to_slash(path)
+    let p = disk_query_path(path)
     if len(p) == 0
         p = disk_default_path()
     end
@@ -68,16 +82,18 @@ pub function mount_count() -> int
 end
 
 ## Returns usage records for every mounted volume.
+## Tolerates native index skew: empty entries or ones lacking the "|" separator
+## (holes from concurrent unmounts) are skipped, so output length may be < mount_count().
 pub function mounts() -> array
     let out = []
     let n = mount_count()
     let i = 0
     while i < n
-        let entry = sysinfo_mount_at(i)
+        let entry = str_owned(sysinfo_mount_at(i))
         let sep = index_of(entry, "|")
         if sep > 0
-            let mnt = to_slash(entry[..sep])
-            let fst = entry[(sep + 1)..]
+            let mnt = str_owned(disk_query_path(entry[..sep]))
+            let fst = str_owned(entry[(sep + 1)..])
             out.push(DiskUsage {
                 path: mnt,
                 fstype: fst,

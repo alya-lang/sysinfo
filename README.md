@@ -127,9 +127,9 @@ main()
 | `os_arch()` | `pub function` | Canonical CPU arch id (`"x64"`, `"x86"`, `"arm64"`). |
 | `os_info()` | `pub function` | Collects an `OsInfo` record. |
 | `kernel()` | `pub function` | Kernel release (`"NT 10.0.26200"`, `"24.6.0"`). |
-| `distro_id()` | `pub function` | Distribution id (`"ubuntu"`, "" on Windows/macOS). |
-| `distro_version()` | `pub function` | Distribution version (`"24.04"`, "" on Windows/macOS). |
-| `elevated()` | `pub function` | 1 when admin/root, else 0. |
+| `distro_id()` | `pub function` | Distribution/edition id (`"ubuntu"`, Windows `EditionID`, "" when unavailable). |
+| `distro_version()` | `pub function` | Distribution version (`"24.04"`, Windows `DisplayVersion`, "" when unavailable). |
+| `elevated()` | `pub function` | 1 when admin/root, 0 when not, -1 on detection failure. |
 | `cpu_cores()` | `pub function` | Logical processor count (>= 1). |
 | `cpu_physical()` | `pub function` | Physical core count (falls back to logical). |
 | `cpu_freq_mhz()` | `pub function` | Base frequency in MHz (-1 when unavailable). |
@@ -146,12 +146,12 @@ main()
 | `volumes()` | `pub function` | Usage records (`DiskUsage`) for every mounted volume. |
 | `disk_usage(path)` | `pub function` | Collects a `DiskUsage` record (defaults to `disk_default_path()`). |
 | `host_name()` | `pub function` | Machine hostname via native API with env fallback. |
-| `host_user()` | `pub function` | Current user name via env. |
+| `host_user()` | `pub function` | Current user name (native lookup first, then env). |
 | `host_info()` | `pub function` | Collects a `HostInfo` record. |
 | `tz_name()` | `pub function` | System timezone name with `TZ` fallback. |
 | `utc_offset_min()` | `pub function` | UTC offset in minutes (UTC+3 -> 180). |
 | `tz_info()` | `pub function` | Collects a `TzInfo` record. |
-| `uptime_sec()` | `pub function` | Seconds since boot (0 when unavailable). |
+| `uptime_sec()` | `pub function` | Seconds since boot (-1 when unavailable). |
 | `boot_time()` | `pub function` | Unix timestamp of the last boot (-1 when unavailable). |
 | `battery()` | `pub function` | Battery charge 0-100 (-1 when no battery/unknown). |
 | `power_info()` | `pub function` | Collects a `PowerInfo` record. |

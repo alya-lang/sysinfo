@@ -5,11 +5,16 @@
 
 import "std/str"
 import "./ffi.alya"
+import "./core/strutil.alya"
 
 ## Returns the whole environment as a name -> value map.
+##
+## Limitation: Alya strings cannot hold NUL bytes and the native
+## sysinfo_env_block() joins entries with "\n", so values containing newlines
+## may misparse (split into phantom entries or truncated at "=").
 pub function env_all() -> map
     let m = map()
-    let block = sysinfo_env_block()
+    let block = str_owned(sysinfo_env_block())
     if len(block) == 0
         return m
     end
@@ -33,7 +38,14 @@ pub function env_count() -> int
     return len(keys(env_all()))
 end
 
+## Returns 1 when the native environment block was truncated, 0 otherwise.
+## Backed by native sysinfo_env_truncated().
+pub function env_truncated() -> int
+    return sysinfo_env_truncated()
+end
+
 ## Returns the value of an environment variable, or default_val when unset.
+## O(n): rebuilds the full environment map on each call; cache env_all() for repeated lookups.
 pub function env_get(key: string, default_val: string = "") -> string
     let m = env_all()
     if key in m

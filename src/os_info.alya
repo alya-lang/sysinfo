@@ -12,13 +12,13 @@ pub function os_name() -> string
     return target_os()
 end
 
-## Returns the human-readable OS version, falling back to the OS id.
+## Returns the human-readable OS version ("" when the native query is empty).
 pub function os_version() -> string
-    let v = sysinfo_os_version()
+    let v = str_owned(sysinfo_os_version())
     if len(v) > 0
-        return str_owned(v)
+        return v
     end
-    return target_os()
+    return ""
 end
 
 ## Returns the canonical CPU arch id ("x64", "x86", "arm64").

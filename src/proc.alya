@@ -13,6 +13,10 @@ pub function proc_pid() -> int
 end
 
 ## Returns the current executable path ("" when unavailable).
+##
+## Per-OS semantics: Windows reports the UTF-8 module path, Linux reads
+## /proc/self/exe (capped at 2047 chars + NUL), macOS may return an unresolved
+## path when the executable was renamed or deleted.
 pub function proc_exe() -> string
     return str_owned(sysinfo_exe_path())
 end

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <pwd.h>
 #include <sys/statvfs.h>
 #include <time.h>
 
@@ -40,11 +41,15 @@ long long sysinfo_mem_total(void) {
     return meminfo_kb("MemTotal:");
 }
 
+static int g_mem_estimated = 0;
+
 long long sysinfo_mem_avail(void) {
     long long a = meminfo_kb("MemAvailable:");
     if (a >= 0) {
+        g_mem_estimated = 0;
         return a;
     }
+    g_mem_estimated = 1;
     long long f = meminfo_kb("MemFree:");
     long long b = meminfo_kb("Buffers:");
     long long c = meminfo_kb("Cached:");
@@ -58,6 +63,10 @@ long long sysinfo_mem_avail(void) {
         c = 0;
     }
     return f + b + c;
+}
+
+int sysinfo_mem_estimated(void) {
+    return g_mem_estimated;
 }
 
 static char g_ver[256];
@@ -295,18 +304,19 @@ static long cpuinfo_long(const char *key, long fallback) {
 }
 
 int sysinfo_cpu_physical(void) {
-    long per_pkg = cpuinfo_long("cpu cores", -1);
-    if (per_pkg < 1) {
-        return sysinfo_cpu_cores();
-    }
-    /* Count physical packages. */
+    /* Count distinct "physical id" values with a dynamically-grown list. */
     FILE *f = fopen("/proc/cpuinfo", "r");
     if (!f) {
-        return (int)per_pkg;
+        return -1;
+    }
+    size_t cap = 16;
+    size_t npkg = 0;
+    int *pkgs = (int *)malloc(cap * sizeof(int));
+    if (!pkgs) {
+        fclose(f);
+        return -1;
     }
     char line[512];
-    int pkgs[16];
-    int npkg = 0;
     while (fgets(line, sizeof(line), f) != 0) {
         if (strncmp(line, "physical id", 11) == 0) {
             char *c = strchr(line, ':');
@@ -314,13 +324,24 @@ int sysinfo_cpu_physical(void) {
                 int id = -1;
                 if (sscanf(c + 1, " %d", &id) == 1 && id >= 0) {
                     int seen = 0;
-                    for (int i = 0; i < npkg; i++) {
+                    for (size_t i = 0; i < npkg; i++) {
                         if (pkgs[i] == id) {
                             seen = 1;
                             break;
                         }
                     }
-                    if (!seen && npkg < 16) {
+                    if (!seen) {
+                        if (npkg >= cap) {
+                            size_t ncap = cap * 2;
+                            int *np = (int *)realloc(pkgs, ncap * sizeof(int));
+                            if (!np) {
+                                free(pkgs);
+                                fclose(f);
+                                return -1;
+                            }
+                            pkgs = np;
+                            cap = ncap;
+                        }
                         pkgs[npkg++] = id;
                     }
                 }
@@ -329,9 +350,16 @@ int sysinfo_cpu_physical(void) {
     }
     fclose(f);
     if (npkg < 1) {
-        return (int)per_pkg;
+        /* No "physical id" field (e.g. VMs): do not guess, report unknown. */
+        free(pkgs);
+        return -1;
     }
-    return npkg * (int)per_pkg;
+    long per_pkg = cpuinfo_long("cpu cores", -1);
+    free(pkgs);
+    if (per_pkg < 1) {
+        return -1;
+    }
+    return (int)(npkg * (size_t)per_pkg);
 }
 
 long long sysinfo_cpu_freq_mhz(void) {
@@ -450,7 +478,10 @@ extern char **environ;
 
 static char g_env[65536];
 
+static int g_env_truncated = 0;
+
 const char *sysinfo_env_block(void) {
+    g_env_truncated = 0;
     if (environ == 0) {
         return "";
     }
@@ -458,6 +489,7 @@ const char *sysinfo_env_block(void) {
     for (char **e = environ; *e != 0 && pos + 1 < sizeof(g_env); e++) {
         size_t n = strlen(*e);
         if (pos + n + 1 >= sizeof(g_env)) {
+            g_env_truncated = 1;
             break;
         }
         memcpy(g_env + pos, *e, n);
@@ -466,6 +498,10 @@ const char *sysinfo_env_block(void) {
     }
     g_env[pos] = '\0';
     return g_env;
+}
+
+int sysinfo_env_truncated(void) {
+    return g_env_truncated;
 }
 
 long long sysinfo_boot_unix(void) {
@@ -566,11 +602,60 @@ static const char *fs_name(long t) {
         case 0x1CD1: return "devpts";
         case 0x62656572: return "sysfs";
         case 0xEF51: return "ext2";
+        case 0x2FC12FC1: return "zfs";
+        case 0x5346544E: return "ntfs";
+        case 0x2011BAB0: return "exfat";
+        case 0xFE534D42: return "smb2";
+        case 0x62734168: return "apfs";
         default: return "";
     }
 }
 
 static char g_fs[64];
+
+/* Fall back to the filesystem column from /proc/mounts for path.
+ * Picks the longest mount-point prefix matching path. */
+static int fs_from_mounts(const char *path, char *out, size_t outsz) {
+    FILE *f = fopen("/proc/mounts", "r");
+    if (!f || !path || !out || outsz == 0) {
+        if (f) {
+            fclose(f);
+        }
+        return 0;
+    }
+    char line[1024];
+    size_t best = 0;
+    char bestfs[128] = { 0 };
+    while (fgets(line, sizeof(line), f) != 0) {
+        char dev[512], mnt[512], fs[128];
+        if (sscanf(line, "%511s %511s %127s", dev, mnt, fs) != 3) {
+            continue;
+        }
+        size_t mlen = strlen(mnt);
+        if (mlen == 0) {
+            continue;
+        }
+        int match = 0;
+        if (strcmp(mnt, "/") == 0) {
+            match = 1;
+        } else if (strncmp(path, mnt, mlen) == 0
+                && (path[mlen] == '/' || path[mlen] == '\0')) {
+            match = 1;
+        }
+        if (match && mlen > best) {
+            best = mlen;
+            strncpy(bestfs, fs, sizeof(bestfs) - 1);
+            bestfs[sizeof(bestfs) - 1] = '\0';
+        }
+    }
+    fclose(f);
+    if (best == 0 || bestfs[0] == '\0') {
+        return 0;
+    }
+    strncpy(out, bestfs, outsz - 1);
+    out[outsz - 1] = '\0';
+    return 1;
+}
 
 const char *sysinfo_fs_type(const char *path) {
     struct statfs s;
@@ -580,11 +665,36 @@ const char *sysinfo_fs_type(const char *path) {
         return "";
     }
     const char *name = fs_name(s.f_type);
-    strncpy(g_fs, name, sizeof(g_fs) - 1);
-    g_fs[sizeof(g_fs) - 1] = '\0';
+    if (name[0] != '\0') {
+        strncpy(g_fs, name, sizeof(g_fs) - 1);
+        g_fs[sizeof(g_fs) - 1] = '\0';
+        return g_fs;
+    }
+    if (fs_from_mounts(p, g_fs, sizeof(g_fs))) {
+        return g_fs;
+    }
+    g_fs[0] = '\0';
     return g_fs;
 }
 
 int sysinfo_is_elevated(void) {
     return geteuid() == 0 ? 1 : 0;
+}
+
+const char *sysinfo_user_name(void) {
+    struct passwd *pw = getpwuid(getuid());
+    if (!pw || !pw->pw_name || pw->pw_name[0] == '\0') {
+        return "";
+    }
+    return pw->pw_name;
+}
+
+static char g_host_native[256];
+
+const char *sysinfo_host_native(void) {
+    if (gethostname(g_host_native, sizeof(g_host_native)) != 0) {
+        return "";
+    }
+    g_host_native[sizeof(g_host_native) - 1] = '\0';
+    return g_host_native;
 }

@@ -5,6 +5,7 @@
 ##
 ## Resolution order: native OS API (FFI) -> LANGUAGE/LC_ALL/LC_MESSAGES/LANG -> "en".
 ## Tags are normalized to BCP-47-ish form: "tr_TR.UTF-8" becomes "tr-TR".
+## "C"/"POSIX" are preserved distinctly and never normalized to "en".
 
 import "std/str"
 import "./types.alya"
@@ -13,7 +14,7 @@ import "./core/strutil.alya"
 
 ## System locale record is defined in types.alya (see LocaleInfo).
 
-## Normalizes a raw locale string ("tr_TR.UTF-8", "en-US", "C") to "tr-TR"/"en-US"/"".
+## Normalizes a raw locale string ("tr_TR.UTF-8" -> "tr-TR"); "C"/"POSIX" are preserved as-is (never mapped to "en").
 pub function normalize_locale_tag(raw) -> string
     if raw is null
         return ""
@@ -36,7 +37,10 @@ pub function normalize_locale_tag(raw) -> string
     end
     s = trim(s)
     s = replace(s, "_", "-")
-    if s == "" or s == "C" or s == "POSIX"
+    if s == "C" or s == "POSIX"
+        return str_owned(s)
+    end
+    if s == ""
         return ""
     end
     return str_owned(s)
@@ -66,13 +70,13 @@ pub function env_locale_tag() -> string
     return ""
 end
 
-## Queries the native OS locale API (Win32/Cocoa/libc), normalized ("" when unknown).
+## Queries the native OS locale API (Win32/Cocoa/libc), normalized ("" when unknown; "C"/"POSIX" preserved).
 pub function native_locale_tag() -> string
-    let raw = sysinfo_native_locale()
+    let raw = str_owned(sysinfo_native_locale())
     return normalize_locale_tag(raw)
 end
 
-## Returns the best system locale tag, falling back to default_lang ("en").
+## Returns the best system locale tag, falling back to default_lang ("en" when nothing found; explicit "C"/"POSIX" is returned as-is).
 pub function system_locale_tag(default_lang: string = "en") -> string
     let n = native_locale_tag()
     if len(n) > 0
@@ -85,7 +89,8 @@ pub function system_locale_tag(default_lang: string = "en") -> string
     return default_lang
 end
 
-## Returns the fallback chain: ["tr-TR", "tr", "en"] (deduplicated).
+## Returns the fallback chain: ["tr-TR", "tr", "en"] (deduplicated; terminal "en" fallback preserved).
+## The C/POSIX locale chains as ["C", "en"] — lang "C" itself is never rewritten to "en".
 pub function system_locale_chain() -> array
     let full = system_locale_tag()
     let out = []
@@ -108,7 +113,7 @@ pub function system_locale_chain() -> array
     return out
 end
 
-## Builds a LocaleInfo record from a tag string.
+## Builds a LocaleInfo record from a tag string ("C" yields lang "C", never "en").
 pub function make_locale_info(tag: string) -> LocaleInfo
     let full = normalize_locale_tag(tag)
     if len(full) == 0

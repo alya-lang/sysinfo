@@ -5,31 +5,53 @@
 
 import "../types.alya"
 
-## Formats a byte count as "2 TB", "15 GB", "512 MB", "900 KB", "42 B" ("unknown" when negative).
+## Formats a byte count with one decimal ("2 TB", "15.9 GB", "5.2 GB", "512 MB", "1.5 KB", "42 B") ("unknown" when negative).
+## Small exact values stay in bytes ("0 B", "42 B"); KB and up carry one decimal unless exact.
 pub function format_bytes(n: int) -> string
     if n < 0
         return "unknown"
     end
     if n >= 1099511627776
-        let t = n / 1099511627776
-        return "{t} TB"
+        let tenths = (n * 10 + 549755813888) / 1099511627776
+        let whole = tenths / 10
+        let frac = tenths - whole * 10
+        if frac == 0
+            return "{whole} TB"
+        end
+        return "{whole}.{frac} TB"
     end
     if n >= 1073741824
-        let g = n / 1073741824
-        return "{g} GB"
+        let tenths = (n * 10 + 536870912) / 1073741824
+        let whole = tenths / 10
+        let frac = tenths - whole * 10
+        if frac == 0
+            return "{whole} GB"
+        end
+        return "{whole}.{frac} GB"
     end
     if n >= 1048576
-        let m = n / 1048576
-        return "{m} MB"
+        let tenths = (n * 10 + 524288) / 1048576
+        let whole = tenths / 10
+        let frac = tenths - whole * 10
+        if frac == 0
+            return "{whole} MB"
+        end
+        return "{whole}.{frac} MB"
     end
     if n >= 1024
-        let k = n / 1024
-        return "{k} KB"
+        let tenths = (n * 10 + 512) / 1024
+        let whole = tenths / 10
+        let frac = tenths - whole * 10
+        if frac == 0
+            return "{whole} KB"
+        end
+        return "{whole}.{frac} KB"
     end
     return "{n} B"
 end
 
-## Formats seconds as "3d 4h", "5h 12m", "7m 30s", "45s" ("unknown" when negative).
+## Formats seconds as "3d 1h 12m", "3d 4h", "5h 12m", "7m 30s", "45s" ("unknown" when negative).
+## Minutes are included whenever a nonzero minute remainder exists, even with days/hours present.
 pub function format_duration(total_sec: int) -> string
     if total_sec < 0
         return "unknown"
@@ -41,6 +63,9 @@ pub function format_duration(total_sec: int) -> string
     let m = rest_h / 60
     let s = rest_h - m * 60
     if d > 0
+        if m > 0
+            return "{d}d {h}h {m}m"
+        end
         return "{d}d {h}h"
     end
     if h > 0
@@ -52,8 +77,45 @@ pub function format_duration(total_sec: int) -> string
     return "{s}s"
 end
 
-## Formats a UTC offset in minutes as "UTC+3", "UTC-5:30", "UTC".
-pub function format_utc_offset(offset_min: int) -> string
+## Pads an integer to two digits ("7" -> "07").
+function two_digits(v: int) -> string
+    if v < 10
+        return "0{str(v)}"
+    end
+    return str(v)
+end
+
+## Formats a Unix timestamp as "YYYY-MM-DD HH:MM UTC" ("unknown" when negative).
+## Pure civil-date arithmetic, no OS dependency, so boot times render identically on every platform.
+pub function format_unix_date(ts: int) -> string
+    if ts < 0
+        return "unknown"
+    end
+    let days = ts / 86400
+    let secs = ts - days * 86400
+    let hh = secs / 3600
+    let mm = (secs - hh * 3600) / 60
+    let z = days + 719468
+    let era = z / 146097
+    let doe = z - era * 146097
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365
+    let y = yoe + era * 400
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100)
+    let mp = (5 * doy + 2) / 153
+    let d = doy - (153 * mp + 2) / 5 + 1
+    let m = mp + 3
+    if m > 12
+        m = m - 12
+        y = y + 1
+    end
+    return "{y}-{two_digits(m)}-{two_digits(d)} {two_digits(hh)}:{two_digits(mm)} UTC"
+end
+
+## Formats a UTC offset in minutes as "UTC+3", "UTC-5:30", "UTC" ("unknown" for -32768).
+## The -32768 sentinel (unknown) never renders as "UTC".
+pub function format_utc_offset(offset_min: int) -> string    if offset_min == -32768
+        return "unknown"
+    end
     if offset_min == 0
         return "UTC"
     end
@@ -71,22 +133,26 @@ pub function format_utc_offset(offset_min: int) -> string
     return "UTC{sign}{h}:{rest}"
 end
 
-## Formats a one-line memory overview ("RAM 15956/32686 MB (48%)").
+## Formats a one-line memory overview ("RAM 15956/32686 MB (48%)"; "~" prefix when estimated).
 pub function format_mem(info: MemInfo) -> string
     if info.is_known() == 0
         return "RAM unknown"
     end
+    let mark = ""
+    if info.estimated == 1
+        mark = "~"
+    end
     let total = info.total_mb()
     if info.avail_mb() < 0
-        return "RAM {total} MB"
+        return "{mark}RAM {total} MB"
     end
     let avail = info.avail_mb()
     let used = total - avail
     let pct = info.used_percent()
-    return "RAM {used}/{total} MB ({pct}%)"
+    return "{mark}RAM {used}/{total} MB ({pct}%)"
 end
 
-## Formats a swap overview ("Swap 512/1024 MB (50%)", "Swap none", "Swap unknown").
+## Formats a swap overview ("Swap 512/1024 MB (50%)", "Swap none", "Swap unknown"; "~" prefix when estimated).
 pub function format_swap(info: MemInfo) -> string
     if info.swap_total_bytes < 0
         return "Swap unknown"
@@ -94,17 +160,22 @@ pub function format_swap(info: MemInfo) -> string
     if info.swap_total_bytes == 0
         return "Swap none"
     end
+    let mark = ""
+    if info.estimated == 1
+        mark = "~"
+    end
     let total = info.swap_mb()
     if info.swap_avail_bytes < 0
-        return "Swap {total} MB"
+        return "{mark}Swap {total} MB"
     end
     let avail = info.swap_avail_bytes / 1048576
     let used = total - avail
     let pct = info.swap_used_percent()
-    return "Swap {used}/{total} MB ({pct}%)"
+    return "{mark}Swap {used}/{total} MB ({pct}%)"
 end
 
 ## Formats a one-line disk overview ("C:/ 120/256 GB (47%)").
+## Percent derives from the documented free-vs-avail figure (quota-aware avail).
 pub function format_disk(usage: DiskUsage) -> string
     if usage.is_known() == 0
         return "{usage.path} unknown"
@@ -133,11 +204,18 @@ pub function format_power(info: PowerInfo) -> string
     return "Power unknown"
 end
 
-## Formats CPU details ("Intel64 ... x8/16, 2394 MHz").
+## Formats CPU details ("Intel64 ... x8/16, 2394 MHz"; "?" for unknown counts, -1 = unknown).
 pub function format_cpu(info: CpuInfo) -> string
-    let cores = "{info.cores}"
+    let cores = "?"
+    if info.cores > 0
+        cores = "{info.cores}"
+    end
     if info.physical_cores > 0 and info.physical_cores != info.cores
-        cores = "{info.physical_cores}/{info.cores}"
+        if info.cores > 0
+            cores = "{info.physical_cores}/{info.cores}"
+        else
+            cores = "{info.physical_cores}/?"
+        end
     end
     if info.freq_mhz > 0
         return "{info.model} x{cores}, {info.freq_mhz} MHz"
