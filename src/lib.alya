@@ -6,18 +6,22 @@
 
 import "./types.alya"
 import "./ffi.alya"
+@cfg(feature = "locale")
 import "./locale.alya"
 import "./os_info.alya"
 import "./cpu.alya"
 import "./mem.alya"
 import "./disk.alya"
 import "./host.alya"
+@cfg(feature = "timezone")
 import "./timezone.alya"
+@cfg(feature = "power")
 import "./power.alya"
 import "./proc.alya"
 import "./env_info.alya"
 import "./load.alya"
 import "./uptime.alya"
+@cfg(feature = "net")
 import "./net.alya"
 import "./core/formatter.alya"
 
@@ -31,11 +35,17 @@ import "./core/formatter.alya"
 ## Populated `SystemInfo` with OS, CPU, memory, disk, host, timezone,
 ## power, process, uptime, locale, and network interface details.
 ##
+## Requires the `timezone`, `power`, `locale`, and `net` features (default-on).
+##
 ## ### Examples
 ## ```alya
 ## let info = system_info()
 ## say info.os.version
 ## ```
+@cfg(feature = "timezone")
+@cfg(feature = "power")
+@cfg(feature = "locale")
+@cfg(feature = "net")
 pub function system_info() -> SystemInfo
     return SystemInfo {
         os: os_info(),
@@ -54,16 +64,28 @@ end
 
 ## Returns a one-line human-readable system summary.
 ##
+## Requires the `timezone`, `power`, `locale`, and `net` features (default-on).
+##
 ## ### Returns
 ## Formatted snapshot string (OS, CPU, RAM, disk, host, TZ, power, uptime, locale).
+@cfg(feature = "timezone")
+@cfg(feature = "power")
+@cfg(feature = "locale")
+@cfg(feature = "net")
 pub function summary() -> string
     return format_system_summary(system_info())
 end
 
 ## Returns a detailed multi-line system report.
 ##
+## Requires the `timezone`, `power`, `locale`, and `net` features (default-on).
+##
 ## ### Returns
 ## One section per line (OS, CPU, memory, disk, host, time, power, proc, locale).
+@cfg(feature = "timezone")
+@cfg(feature = "power")
+@cfg(feature = "locale")
+@cfg(feature = "net")
 pub function details() -> string
     return format_system_details(system_info())
 end
@@ -107,6 +129,9 @@ end
 # ───────────────────────────────────────────────────────────────
 
 ## Returns battery charge 0-100 (-1 when no battery or unknown).
+##
+## Requires the `power` feature (default-on).
+@cfg(feature = "power")
 pub function battery() -> int
     return battery_percent()
 end
@@ -146,21 +171,33 @@ end
 # ───────────────────────────────────────────────────────────────
 
 ## Returns the best system locale tag (e.g. "tr-TR", "en-US"), "en" fallback.
+##
+## Requires the `locale` feature (default-on).
+@cfg(feature = "locale")
 pub function system_lang(default_lang: string = "en") -> string
     return system_locale_tag(default_lang)
 end
 
 ## Returns the locale fallback chain (e.g. ["tr-TR", "tr", "en"]).
+##
+## Requires the `locale` feature (default-on).
+@cfg(feature = "locale")
 pub function system_langs() -> array
     return system_locale_chain()
 end
 
 ## Normalizes a raw locale string to BCP-47-ish form ("tr_TR.UTF-8" -> "tr-TR").
+##
+## Requires the `locale` feature (default-on).
+@cfg(feature = "locale")
 pub function normalize_locale(raw) -> string
     return normalize_locale_tag(raw)
 end
 
 ## Returns LocaleInfo for the current system locale.
+##
+## Requires the `locale` feature (default-on).
+@cfg(feature = "locale")
 pub function locale_info() -> LocaleInfo
     return system_locale_info()
 end

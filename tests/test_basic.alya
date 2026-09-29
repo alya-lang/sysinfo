@@ -8,6 +8,23 @@ import "../src/lib.alya" as pkg
 function main()
     test_suite("sysinfo Test Suite")
     let r = runner_new()
+    @cfg(feature = "timezone")
+    tz_basic_check(r)
+
+    @cfg(feature = "locale")
+    locale_check(r)
+
+    @cfg(feature = "timezone")
+    @cfg(feature = "power")
+    @cfg(feature = "locale")
+    @cfg(feature = "net")
+    snapshot_check(r)
+
+    @cfg(feature = "power")
+    power_check(r)
+
+    @cfg(feature = "net")
+    net_check(r)
 
     # ═══════════════════════════════════════════════════════════
     # 1. OS identification
@@ -62,13 +79,6 @@ function main()
     runner_assert_true(r, len(pkg::host_name()) > 0, "host_name returns non-empty string")
     let host = pkg::host_info()
     runner_assert_true(r, len(host.hostname) > 0, "host_info().hostname is non-empty")
-
-    # ═══════════════════════════════════════════════════════════
-    # 6. Timezone
-    # ═══════════════════════════════════════════════════════════
-    let tz = pkg::tz_info()
-    runner_assert_true(r, tz.offset_min >= -720, "UTC offset is within -12h")
-    runner_assert_true(r, tz.offset_min <= 840, "UTC offset is within +14h")
     runner_assert_str_eq(r, pkg::format_utc_offset(180), "UTC+3", "format_utc_offset(180) == UTC+3")
     runner_assert_str_eq(r, pkg::format_utc_offset(0), "UTC", "format_utc_offset(0) == UTC")
 
@@ -79,28 +89,6 @@ function main()
     runner_assert_str_eq(r, pkg::format_duration(45), "45s", "format_duration seconds")
     runner_assert_str_eq(r, pkg::format_duration(150), "2m 30s", "format_duration minutes")
     runner_assert_str_eq(r, pkg::format_duration(9000), "2h 30m", "format_duration hours")
-
-    # ═══════════════════════════════════════════════════════════
-    # 8. Locale
-    # ═══════════════════════════════════════════════════════════
-    let loc = pkg::system_lang()
-    runner_assert_true(r, len(loc) > 0, "system_lang returns non-empty tag")
-    let chain = pkg::system_langs()
-    runner_assert_true(r, len(chain) > 0, "system_langs returns fallback chain")
-    runner_assert_str_eq(r, pkg::normalize_locale("tr_TR.UTF-8"), "tr-TR", "normalize tr_TR.UTF-8 to tr-TR")
-    runner_assert_str_eq(r, pkg::normalize_locale("en-US"), "en-US", "normalize keeps en-US")
-    runner_assert_str_eq(r, pkg::normalize_locale("en_US"), "en-US", "normalize en_US to en-US")
-    runner_assert_str_eq(r, pkg::normalize_locale("tr:en"), "tr", "normalize takes first LANGUAGE entry")
-    runner_assert_str_eq(r, pkg::normalize_locale("POSIX"), "POSIX", "normalize preserves POSIX distinctly")
-    runner_assert_str_eq(r, pkg::normalize_locale("C"), "C", "normalize preserves C distinctly")
-    let fixed_loc = pkg::make_locale_info("tr-TR")
-    runner_assert_str_eq(r, fixed_loc.bcp47, "tr-TR", "make_locale_info bcp47")
-    runner_assert_str_eq(r, fixed_loc.lang, "tr", "make_locale_info lang")
-    runner_assert_str_eq(r, fixed_loc.region, "TR", "make_locale_info region")
-    let chain_last = chain[len(chain) - 1]
-    runner_assert_str_eq(r, chain_last, "en", "fallback chain always ends with en")
-    let info = pkg::locale_info()
-    runner_assert_true(r, len(info.bcp47) > 0, "locale_info returns bcp47 tag")
 
     # ═══════════════════════════════════════════════════════════
     # 9. Formatters (deterministic vectors)
@@ -119,16 +107,6 @@ function main()
     runner_assert_str_eq(r, pkg::format_mem(pkg::make_mem_info(2147483648, -1, -1, -1)), "RAM 2048 MB", "format_mem unknown avail")
     runner_assert_str_eq(r, pkg::format_swap(fixed_mem), "Swap 512/1024 MB (50%)", "format_swap fixed vector")
     runner_assert_eq(r, fixed_mem.swap_mb(), 1024, "swap_mb fixed vector")
-
-    # ═══════════════════════════════════════════════════════════
-    # 10. Aggregated snapshot
-    # ═══════════════════════════════════════════════════════════
-    let sys = pkg::system_info()
-    runner_assert_true(r, len(sys.os.version) > 0, "system_info().os.version is non-empty")
-    runner_assert_true(r, sys.cpu.cores >= 1, "system_info().cpu.cores >= 1")
-    runner_assert_true(r, sys.mem.total_bytes > 0, "system_info().mem.total_bytes is positive")
-    runner_assert_true(r, len(pkg::summary()) > 0, "summary() returns non-empty string")
-    runner_assert_true(r, len(pkg::details()) > 0, "details() returns non-empty string")
 
     # ═══════════════════════════════════════════════════════════
     # 11. OS detail (kernel, distro, privileges)
@@ -192,19 +170,6 @@ function main()
     end
 
     # ═══════════════════════════════════════════════════════════
-    # 15. Power & battery
-    # ═══════════════════════════════════════════════════════════
-    let batt = pkg::battery()
-    runner_assert_true(r, batt >= -1, "battery returns -1 or non-negative")
-    runner_assert_true(r, batt <= 100, "battery does not exceed 100")
-    let ac = pkg::on_ac()
-    runner_assert_true(r, ac >= -1, "on_ac returns -1, 0 or 1")
-    runner_assert_true(r, ac <= 1, "on_ac does not exceed 1")
-    let pwr = pkg::power_info()
-    runner_assert_true(r, pwr.has_battery() == 0 or pwr.has_battery() == 1, "has_battery returns 0 or 1")
-    runner_assert_true(r, len(pkg::format_power(pwr)) > 0, "format_power returns non-empty string")
-
-    # ═══════════════════════════════════════════════════════════
     # 16. Process, boot time & load average
     # ═══════════════════════════════════════════════════════════
     runner_assert_true(r, pkg::proc_pid() > 0, "proc_pid is positive")
@@ -237,6 +202,121 @@ function main()
     runner_assert_eq(r, c_sum, 42, "pkg::c_add executes bundled C code")
 
     # ═══════════════════════════════════════════════════════════
+    # 19. Accuracy fixes: decimals, duration minutes, TZ mapping
+    # ═══════════════════════════════════════════════════════════
+    runner_assert_str_eq(r, pkg::format_bytes(16642998272), "15.5 GB", "format_bytes one decimal")
+    runner_assert_str_eq(r, pkg::format_bytes(16106127360), "15 GB", "format_bytes exact stays clean")
+    runner_assert_str_eq(r, pkg::format_duration(262800), "3d 1h", "format_duration exact days")
+    runner_assert_str_eq(r, pkg::format_duration(265200), "3d 1h 40m", "format_duration keeps minutes")
+    runner_assert_str_eq(r, pkg::format_duration(-1), "unknown", "format_duration unknown")
+    runner_assert_str_eq(r, pkg::format_unix_date(1790246765), "2026-09-24 10:46 UTC", "format_unix_date renders boot time")
+    runner_assert_str_eq(r, pkg::format_unix_date(0), "1970-01-01 00:00 UTC", "format_unix_date epoch")
+    runner_assert_str_eq(r, pkg::format_unix_date(-1), "unknown", "format_unix_date unknown")
+    @cfg(feature = "power")
+    @cfg(feature = "timezone")
+    runner_assert_str_eq(r, pkg::format_power(pkg::make_power_info(100, -1)), "Battery 100% (power source unknown)", "format_power unknown source")    runner_assert_str_eq(r, pkg::tz_iana("Turkey Standard Time"), "Europe/Istanbul", "tz_iana maps Windows key")
+    @cfg(feature = "timezone")
+    runner_assert_str_eq(r, pkg::tz_iana("Eastern Standard Time"), "America/New_York", "tz_iana maps US Eastern")
+    @cfg(feature = "timezone")
+    runner_assert_str_eq(r, pkg::tz_iana("Tokyo Standard Time"), "Asia/Tokyo", "tz_iana maps Tokyo")
+    @cfg(feature = "timezone")
+    runner_assert_str_eq(r, pkg::tz_iana("GMT Standard Time"), "Europe/London", "tz_iana maps GMT")
+    @cfg(feature = "timezone")
+    runner_assert_str_eq(r, pkg::tz_iana("UTC"), "Etc/UTC", "tz_iana maps UTC key")
+    @cfg(feature = "timezone")
+    runner_assert_str_eq(r, pkg::tz_iana("New Zealand Standard Time"), "Pacific/Auckland", "tz_iana maps Auckland")
+    @cfg(feature = "timezone")
+    runner_assert_str_eq(r, pkg::tz_iana("SA Eastern Standard Time"), "America/Cayenne", "tz_iana maps Cayenne")
+    @cfg(feature = "timezone")
+    runner_assert_str_eq(r, pkg::tz_iana(""), "", "tz_iana empty is empty")
+    @cfg(feature = "timezone")
+    runner_assert_str_eq(r, pkg::tz_iana("Europe/Istanbul"), "Europe/Istanbul", "tz_iana passes IANA through")
+    @cfg(feature = "timezone")
+    runner_assert_str_eq(r, pkg::tz_iana("No Such Zone"), "", "tz_iana unknown is empty")
+    runner_assert_true(r, pkg::mem_estimated() == 0 or pkg::mem_estimated() == 1, "mem_estimated is 0 or 1")
+    runner_assert_true(r, pkg::env_truncated() == 0 or pkg::env_truncated() == 1, "env_truncated is 0 or 1")
+    runner_assert_true(r, len(pkg::host_user()) > 0, "host_user returns non-empty string")
+    @cfg(feature = "timezone")
+    let tz = pkg::tz_info()
+    @cfg(feature = "timezone")
+    runner_assert_true(r, tz.offset_min > -32768 or tz.iana != "" or tz.name != "", "tz_info populated")
+
+    let failed = runner_summary(r)
+    if failed > 0
+        exit(1)
+    end
+end
+
+@cfg(feature = "timezone")
+function tz_basic_check(r)
+    # ═══════════════════════════════════════════════════════════
+    # 6. Timezone
+    # ═══════════════════════════════════════════════════════════
+    let tz = pkg::tz_info()
+    runner_assert_true(r, tz.offset_min >= -720, "UTC offset is within -12h")
+    runner_assert_true(r, tz.offset_min <= 840, "UTC offset is within +14h")
+end
+
+@cfg(feature = "locale")
+function locale_check(r)
+    # ═══════════════════════════════════════════════════════════
+    # 8. Locale
+    # ═══════════════════════════════════════════════════════════
+    let loc = pkg::system_lang()
+    runner_assert_true(r, len(loc) > 0, "system_lang returns non-empty tag")
+    let chain = pkg::system_langs()
+    runner_assert_true(r, len(chain) > 0, "system_langs returns fallback chain")
+    runner_assert_str_eq(r, pkg::normalize_locale("tr_TR.UTF-8"), "tr-TR", "normalize tr_TR.UTF-8 to tr-TR")
+    runner_assert_str_eq(r, pkg::normalize_locale("en-US"), "en-US", "normalize keeps en-US")
+    runner_assert_str_eq(r, pkg::normalize_locale("en_US"), "en-US", "normalize en_US to en-US")
+    runner_assert_str_eq(r, pkg::normalize_locale("tr:en"), "tr", "normalize takes first LANGUAGE entry")
+    runner_assert_str_eq(r, pkg::normalize_locale("POSIX"), "POSIX", "normalize preserves POSIX distinctly")
+    runner_assert_str_eq(r, pkg::normalize_locale("C"), "C", "normalize preserves C distinctly")
+    let fixed_loc = pkg::make_locale_info("tr-TR")
+    runner_assert_str_eq(r, fixed_loc.bcp47, "tr-TR", "make_locale_info bcp47")
+    runner_assert_str_eq(r, fixed_loc.lang, "tr", "make_locale_info lang")
+    runner_assert_str_eq(r, fixed_loc.region, "TR", "make_locale_info region")
+    let chain_last = chain[len(chain) - 1]
+    runner_assert_str_eq(r, chain_last, "en", "fallback chain always ends with en")
+    let info = pkg::locale_info()
+    runner_assert_true(r, len(info.bcp47) > 0, "locale_info returns bcp47 tag")
+end
+
+@cfg(feature = "timezone")
+@cfg(feature = "power")
+@cfg(feature = "locale")
+@cfg(feature = "net")
+function snapshot_check(r)
+    # ═══════════════════════════════════════════════════════════
+    # 10. Aggregated snapshot
+    # ═══════════════════════════════════════════════════════════
+    let sys = pkg::system_info()
+    runner_assert_true(r, len(sys.os.version) > 0, "system_info().os.version is non-empty")
+    runner_assert_true(r, sys.cpu.cores >= 1, "system_info().cpu.cores >= 1")
+    runner_assert_true(r, sys.mem.total_bytes > 0, "system_info().mem.total_bytes is positive")
+    runner_assert_true(r, len(pkg::summary()) > 0, "summary() returns non-empty string")
+    runner_assert_true(r, len(pkg::details()) > 0, "details() returns non-empty string")
+end
+
+@cfg(feature = "power")
+function power_check(r)
+    # ═══════════════════════════════════════════════════════════
+    # 15. Power & battery
+    # ═══════════════════════════════════════════════════════════
+    let batt = pkg::battery()
+    runner_assert_true(r, batt >= -1, "battery returns -1 or non-negative")
+    runner_assert_true(r, batt <= 100, "battery does not exceed 100")
+    let ac = pkg::on_ac()
+    runner_assert_true(r, ac >= -1, "on_ac returns -1, 0 or 1")
+    runner_assert_true(r, ac <= 1, "on_ac does not exceed 1")
+    let pwr = pkg::power_info()
+    runner_assert_true(r, pwr.has_battery() == 0 or pwr.has_battery() == 1, "has_battery returns 0 or 1")
+    runner_assert_true(r, len(pkg::format_power(pwr)) > 0, "format_power returns non-empty string")
+end
+
+@cfg(feature = "net")
+function net_check(r)
+    # ═══════════════════════════════════════════════════════════
     # 18b. Network interfaces
     # ═══════════════════════════════════════════════════════════
     runner_assert_true(r, pkg::net_count() >= 1, "at least one interface enumerated")
@@ -260,38 +340,5 @@ function main()
     runner_assert_true(r, len(pkg::format_net_rate(r0)) > 0, "format_net_rate non-empty")
     let lr = pkg::net_rate("loopback-missing-xyz", 200)
     runner_assert_eq(r, lr.rx_bps, -1, "missing interface rate is -1")
-
-    # ═══════════════════════════════════════════════════════════
-    # 19. Accuracy fixes: decimals, duration minutes, TZ mapping
-    # ═══════════════════════════════════════════════════════════
-    runner_assert_str_eq(r, pkg::format_bytes(16642998272), "15.5 GB", "format_bytes one decimal")
-    runner_assert_str_eq(r, pkg::format_bytes(16106127360), "15 GB", "format_bytes exact stays clean")
-    runner_assert_str_eq(r, pkg::format_duration(262800), "3d 1h", "format_duration exact days")
-    runner_assert_str_eq(r, pkg::format_duration(265200), "3d 1h 40m", "format_duration keeps minutes")
-    runner_assert_str_eq(r, pkg::format_duration(-1), "unknown", "format_duration unknown")
-    runner_assert_str_eq(r, pkg::format_unix_date(1790246765), "2026-09-24 10:46 UTC", "format_unix_date renders boot time")
-    runner_assert_str_eq(r, pkg::format_unix_date(0), "1970-01-01 00:00 UTC", "format_unix_date epoch")
-    runner_assert_str_eq(r, pkg::format_unix_date(-1), "unknown", "format_unix_date unknown")
-    runner_assert_str_eq(r, pkg::format_power(pkg::make_power_info(100, -1)), "Battery 100% (power source unknown)", "format_power unknown source")    runner_assert_str_eq(r, pkg::tz_iana("Turkey Standard Time"), "Europe/Istanbul", "tz_iana maps Windows key")
-    runner_assert_str_eq(r, pkg::tz_iana("Eastern Standard Time"), "America/New_York", "tz_iana maps US Eastern")
-    runner_assert_str_eq(r, pkg::tz_iana("Tokyo Standard Time"), "Asia/Tokyo", "tz_iana maps Tokyo")
-    runner_assert_str_eq(r, pkg::tz_iana("GMT Standard Time"), "Europe/London", "tz_iana maps GMT")
-    runner_assert_str_eq(r, pkg::tz_iana("UTC"), "Etc/UTC", "tz_iana maps UTC key")
-    runner_assert_str_eq(r, pkg::tz_iana("New Zealand Standard Time"), "Pacific/Auckland", "tz_iana maps Auckland")
-    runner_assert_str_eq(r, pkg::tz_iana("SA Eastern Standard Time"), "America/Cayenne", "tz_iana maps Cayenne")
-    runner_assert_str_eq(r, pkg::tz_iana(""), "", "tz_iana empty is empty")
-    runner_assert_str_eq(r, pkg::tz_iana("Europe/Istanbul"), "Europe/Istanbul", "tz_iana passes IANA through")
-    runner_assert_str_eq(r, pkg::tz_iana("No Such Zone"), "", "tz_iana unknown is empty")
-    runner_assert_true(r, pkg::mem_estimated() == 0 or pkg::mem_estimated() == 1, "mem_estimated is 0 or 1")
-    runner_assert_true(r, pkg::env_truncated() == 0 or pkg::env_truncated() == 1, "env_truncated is 0 or 1")
-    runner_assert_true(r, len(pkg::host_user()) > 0, "host_user returns non-empty string")
-    let tz = pkg::tz_info()
-    runner_assert_true(r, tz.offset_min > -32768 or tz.iana != "" or tz.name != "", "tz_info populated")
-
-    let failed = runner_summary(r)
-    if failed > 0
-        exit(1)
-    end
 end
-
 main()

@@ -46,13 +46,10 @@ function main()
     let host = pkg::host_info()
     say "Host:    " + host.hostname
     say "User:    " + host.username + " (elevated=" + str(pkg::elevated()) + ")"
-    let tz = pkg::tz_info()
-    let tz_line = "TZ:      " + tz.name + " (" + pkg::format_utc_offset(tz.offset_min) + ")"
-    if len(tz.iana) > 0 and tz.iana != tz.name
-        tz_line = "TZ:      " + tz.name + " [" + tz.iana + "] (" + pkg::format_utc_offset(tz.offset_min) + ")"
-    end
-    say tz_line
+    @cfg(feature = "timezone")
+    demo_tz()
     say "Uptime:  " + pkg::format_duration(pkg::uptime_sec()) + " (boot " + pkg::format_unix_date(pkg::boot_time()) + ")"
+    @cfg(feature = "power")
     say "Power:   " + pkg::format_power(pkg::power_info())
     say "Proc:    " + str(pkg::proc_pid()) + " " + pkg::exe_path()
     say "Env:     " + str(pkg::env_len()) + " vars"
@@ -63,12 +60,54 @@ function main()
     say "Distro:  " + pkg::distro_id() + " " + pkg::distro_version()
     say ""
 
+    @cfg(feature = "locale")
+    demo_locale()
+
+    @cfg(feature = "net")
+    demo_net()
+
+    @cfg(feature = "timezone")
+    @cfg(feature = "power")
+    @cfg(feature = "locale")
+    @cfg(feature = "net")
+    demo_snapshot()
+    say "--- 10. Extras ---"
+    say "Uptime:  " + str(pkg::uptime_days()) + "d / " + str(pkg::uptime_hours()) + "h / " + str(pkg::uptime_min()) + "m"
+    say "Env:     PATH has " + str(len(pkg::env_val("PATH", pkg::env_val("Path", "")))) + " chars"
+    @cfg(feature = "locale")
+    let langs = pkg::system_langs()
+    @cfg(feature = "locale")
+    say "Locale:  " + pkg::normalize_locale("tr_TR.UTF-8") + " -> chain head=" + langs[0]
+    if pkg::load_is_known() == 1
+        say "Load:    " + str(pkg::load_avg_1()) + " / " + str(pkg::load_avg_5()) + " / " + str(pkg::load_avg_15())
+    else
+        say "Load averages unavailable on this platform"
+    end
+    say ""
+    say "Done!"
+end
+
+@cfg(feature = "timezone")
+function demo_tz()
+    let tz = pkg::tz_info()
+    let tz_line = "TZ:      " + tz.name + " (" + pkg::format_utc_offset(tz.offset_min) + ")"
+    if len(tz.iana) > 0 and tz.iana != tz.name
+        tz_line = "TZ:      " + tz.name + " [" + tz.iana + "] (" + pkg::format_utc_offset(tz.offset_min) + ")"
+    end
+    say tz_line
+end
+
+@cfg(feature = "locale")
+function demo_locale()
     say "--- 7. Locale ---"
     say "Lang:    " + pkg::system_lang()
     let loc = pkg::locale_info()
     say "BCP47:   " + loc.bcp47 + " (lang=" + loc.lang + ", region=" + loc.region + ")"
     say ""
+end
 
+@cfg(feature = "net")
+function demo_net()
     say "--- 7b. Network ---"
     let nics = pkg::net_interfaces()
     say "Ifaces:  " + str(len(nics))
@@ -85,25 +124,18 @@ function main()
         ri += 1
     end
     say ""
+end
 
+@cfg(feature = "timezone")
+@cfg(feature = "power")
+@cfg(feature = "locale")
+@cfg(feature = "net")
+function demo_snapshot()
     say "--- 8. Full Snapshot ---"
     say pkg::summary()
     say ""
     say "--- 9. Detailed Report ---"
     say pkg::details()
     say ""
-    say "--- 10. Extras ---"
-    say "Uptime:  " + str(pkg::uptime_days()) + "d / " + str(pkg::uptime_hours()) + "h / " + str(pkg::uptime_min()) + "m"
-    say "Env:     PATH has " + str(len(pkg::env_val("PATH", pkg::env_val("Path", "")))) + " chars"
-    let langs = pkg::system_langs()
-    say "Locale:  " + pkg::normalize_locale("tr_TR.UTF-8") + " -> chain head=" + langs[0]
-    if pkg::load_is_known() == 1
-        say "Load:    " + str(pkg::load_avg_1()) + " / " + str(pkg::load_avg_5()) + " / " + str(pkg::load_avg_15())
-    else
-        say "Load averages unavailable on this platform"
-    end
-    say ""
-    say "Done!"
 end
-
 main()

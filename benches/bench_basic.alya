@@ -11,6 +11,10 @@ function main()
     bench_start(runner, 1000)
     let i = 0
     while i < 1000
+        @cfg(feature = "timezone")
+        @cfg(feature = "power")
+        @cfg(feature = "locale")
+        @cfg(feature = "net")
         pkg::system_info()
         i += 1
     end
@@ -29,6 +33,7 @@ function main()
     bench_start(runner, 100000)
     let k = 0
     while k < 100000
+        @cfg(feature = "locale")
         pkg::normalize_locale("tr_TR.UTF-8")
         k += 1
     end
@@ -47,6 +52,10 @@ function main()
     bench_start(runner, 1000)
     let s = 0
     while s < 1000
+        @cfg(feature = "timezone")
+        @cfg(feature = "power")
+        @cfg(feature = "locale")
+        @cfg(feature = "net")
         pkg::summary()
         s += 1
     end

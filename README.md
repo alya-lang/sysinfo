@@ -92,6 +92,27 @@ alya add sysinfo --git https://github.com/alya-lang/sysinfo --branch main
 alya install
 ```
 
+### Package Features
+
+| Feature | Default | Description |
+|:---|:---:|:---|
+| `timezone` | ✅ | Timezone database and zone info (`tz_info`, `tz_iana`, ...). |
+| `power` | ✅ | Power/battery reporting (`battery`, `power_info`, ...). |
+| `locale` | ✅ | System locale detection (`system_lang`, `locale_info`, ...). |
+| `net` | ✅ | Network interfaces and rates (`net_interfaces`, `net_rates`, ...). |
+
+`system_info()`, `summary()`, and `details()` need all four (they aggregate every domain). OS/CPU/memory/disk/host/process/env/load/uptime always work.
+
+```bash
+# Full build (default)
+alya install
+alya test
+
+# Slim build (core domains only)
+alya install --no-default-features
+alya test --no-default-features
+```
+
 ---
 
 ## 🚀 Quick Start

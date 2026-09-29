@@ -12,6 +12,13 @@ keywords = ["alya", "alya-lang", "package", "sysinfo", "locale", "system", "cpu"
 
 [dependencies]
 
+[features]
+default = ["timezone", "power", "locale", "net"]
+timezone = []
+power = []
+locale = []
+net = []
+
 [build]
 c-sources = ["c/sysinfo.c"]
 c-sources-windows = ["c/win32_locale.c", "c/win32_sysinfo.c"]
