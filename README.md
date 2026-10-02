@@ -145,7 +145,7 @@ main()
 | `summary()` | `pub function` | Returns a one-line human-readable system summary. |
 | `os_name()` | `pub function` | Canonical OS id (`"windows"`, `"linux"`, `"macos"`). |
 | `os_version()` | `pub function` | Human-readable OS version with OS-id fallback. |
-| `os_arch()` | `pub function` | Canonical CPU arch id (`"x64"`, `"x86"`, `"arm64"`). |
+| `os_arch()` | `pub function` | Canonical CPU arch id (`"x64"`, `"arm64"`). |
 | `os_info()` | `pub function` | Collects an `OsInfo` record. |
 | `kernel()` | `pub function` | Kernel release (`"NT 10.0.26200"`, `"24.6.0"`). |
 | `distro_id()` | `pub function` | Distribution/edition id (`"ubuntu"`, Windows `EditionID`, "" when unavailable). |

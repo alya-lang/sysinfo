@@ -7,7 +7,7 @@ import "./types.alya"
 import "./ffi.alya"
 import "./core/strutil.alya"
 
-## Returns the canonical CPU arch id ("x64", "x86", "arm64").
+## Returns the canonical CPU arch id ("x64", "arm64").
 pub function cpu_arch() -> string
     return target_arch()
 end

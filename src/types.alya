@@ -12,7 +12,7 @@
 ## ### Fields
 ## - `name`: Canonical OS id (`"windows"`, `"linux"`, `"macos"`).
 ## - `version`: Human-readable version (`"Windows 11 (10.0.26100)"`, `"Ubuntu 24.04.1 LTS"`).
-## - `arch`: Canonical CPU arch id (`"x64"`, `"x86"`, `"arm64"`).
+## - `arch`: Canonical CPU arch id (`"x64"`, `"arm64"`).
 ## - `kernel`: Kernel release (`"NT 10.0.26200"`, `"24.6.0"`, `"6.8.0-52-generic"`).
 ## - `distro_id`: Distribution id from `/etc/os-release` (`"ubuntu"`, "" elsewhere).
 ## - `distro_version`: Distribution version (`"24.04"`, "" elsewhere).

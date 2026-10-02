@@ -21,7 +21,7 @@ pub function os_version() -> string
     return ""
 end
 
-## Returns the canonical CPU arch id ("x64", "x86", "arm64").
+## Returns the canonical CPU arch id ("x64", "arm64").
 pub function os_arch() -> string
     return target_arch()
 end
