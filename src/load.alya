@@ -21,7 +21,7 @@ pub function load_avg_15() -> float
 end
 
 ## Returns 1 when load averages are available (any of load_1/5/15 >= 0), 0 otherwise.
-pub function load_is_known() -> int
+pub function load_is_known() -> bool
     if load_avg_1() >= 0.0
         return true
     end

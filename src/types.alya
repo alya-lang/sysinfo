@@ -233,7 +233,7 @@ pub function MemInfo.used_percent(self: MemInfo) -> int
 end
 
 ## Returns 1 when total RAM is known, 0 otherwise.
-pub function MemInfo.is_known(self: MemInfo) -> int
+pub function MemInfo.is_known(self: MemInfo) -> bool
     if self.total_bytes > 0
         return true
     end
@@ -291,7 +291,7 @@ pub function DiskUsage.used_percent(self: DiskUsage) -> int
 end
 
 ## Returns 1 when disk figures are known, 0 otherwise.
-pub function DiskUsage.is_known(self: DiskUsage) -> int
+pub function DiskUsage.is_known(self: DiskUsage) -> bool
     if self.total_bytes > 0
         return true
     end
@@ -303,7 +303,7 @@ end
 # ───────────────────────────────────────────────────────────────
 
 ## Returns 1 when a battery is present, 0 otherwise.
-pub function PowerInfo.has_battery(self: PowerInfo) -> int
+pub function PowerInfo.has_battery(self: PowerInfo) -> bool
     if self.battery_percent >= 0
         return true
     end
@@ -311,7 +311,7 @@ pub function PowerInfo.has_battery(self: PowerInfo) -> int
 end
 
 ## Returns 1 when on AC power, 0 otherwise (unknown counts as 0).
-pub function PowerInfo.is_on_ac(self: PowerInfo) -> int
+pub function PowerInfo.is_on_ac(self: PowerInfo) -> bool
     if self.on_ac == true
         return true
     end

@@ -47,7 +47,7 @@ pub function is_elevated() -> int
 end
 
 ## Returns 1 on Windows, else 0.
-pub function os_is_windows() -> int
+pub function os_is_windows() -> bool
     if target_os() == "windows"
         return true
     end
@@ -55,7 +55,7 @@ pub function os_is_windows() -> int
 end
 
 ## Returns 1 on Linux, else 0.
-pub function os_is_linux() -> int
+pub function os_is_linux() -> bool
     if target_os() == "linux"
         return true
     end
@@ -63,7 +63,7 @@ pub function os_is_linux() -> int
 end
 
 ## Returns 1 on macOS, else 0.
-pub function os_is_macos() -> int
+pub function os_is_macos() -> bool
     if target_os() == "macos"
         return true
     end
