@@ -325,8 +325,8 @@ function net_check(r)
     let nics = pkg::net_interfaces()
     runner_assert_true(r, len(nics) >= 1, "net_interfaces returns entries")
     let lo = pkg::net_loopback()
-    runner_assert_true(r, lo != null, "loopback interface present")
-    if lo != null
+    runner_assert_true(r, lo is not null, "loopback interface present")
+    if lo is not null
         runner_assert_str_eq(r, lo.ipv4, "127.0.0.1", "loopback IPv4")
         runner_assert_true(r, len(pkg::format_net(lo)) > 0, "format_net non-empty")
     end
