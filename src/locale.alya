@@ -101,13 +101,13 @@ pub function system_locale_chain() -> array
             out.push(base)
         end
     end
-    let has_en = 0
+    let has_en = false
     for l in out
         if l == "en"
-            has_en = 1
+            has_en = true
         end
     end
-    if has_en == 0
+    if has_en == false
         out.push("en")
     end
     return out

@@ -235,9 +235,9 @@ end
 ## Returns 1 when total RAM is known, 0 otherwise.
 pub function MemInfo.is_known(self: MemInfo) -> int
     if self.total_bytes > 0
-        return 1
+        return true
     end
-    return 0
+    return false
 end
 
 ## Returns swap total in whole megabytes (-1 when unavailable).
@@ -293,9 +293,9 @@ end
 ## Returns 1 when disk figures are known, 0 otherwise.
 pub function DiskUsage.is_known(self: DiskUsage) -> int
     if self.total_bytes > 0
-        return 1
+        return true
     end
-    return 0
+    return false
 end
 
 # ───────────────────────────────────────────────────────────────
@@ -305,15 +305,15 @@ end
 ## Returns 1 when a battery is present, 0 otherwise.
 pub function PowerInfo.has_battery(self: PowerInfo) -> int
     if self.battery_percent >= 0
-        return 1
+        return true
     end
-    return 0
+    return false
 end
 
 ## Returns 1 when on AC power, 0 otherwise (unknown counts as 0).
 pub function PowerInfo.is_on_ac(self: PowerInfo) -> int
-    if self.on_ac == 1
-        return 1
+    if self.on_ac == true
+        return true
     end
-    return 0
+    return false
 end

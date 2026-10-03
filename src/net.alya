@@ -20,8 +20,8 @@ function parse_net_entry(entry: string) -> NetInterface
     let mac = ""
     let ipv4 = ""
     let ipv6 = ""
-    let up = 0
-    let loop = 0
+    let up = false
+    let loop = false
     if len(parts) > 0
         name = parts[0]
     end
@@ -35,10 +35,10 @@ function parse_net_entry(entry: string) -> NetInterface
         ipv6 = parts[3]
     end
     if len(parts) > 4 and parts[4] == "1"
-        up = 1
+        up = true
     end
     if len(parts) > 5 and parts[5] == "1"
-        loop = 1
+        loop = true
     end
     return NetInterface {
         name: name,
@@ -80,7 +80,7 @@ pub function net_loopback()
     let i = 0
     while i < len(nics)
         let nic: NetInterface = nics[i]
-        if nic.is_loopback == 1
+        if nic.is_loopback == true
             return nic
         end
         i += 1

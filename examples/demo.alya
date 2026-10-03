@@ -78,7 +78,7 @@ function main()
     let langs = pkg::system_langs()
     @cfg(feature = "locale")
     say "Locale:  " + pkg::normalize_locale("tr_TR.UTF-8") + " -> chain head=" + langs[0]
-    if pkg::load_is_known() == 1
+    if pkg::load_is_known() == true
         say "Load:    " + str(pkg::load_avg_1()) + " / " + str(pkg::load_avg_5()) + " / " + str(pkg::load_avg_15())
     else
         say "Load averages unavailable on this platform"

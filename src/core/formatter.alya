@@ -136,11 +136,11 @@ end
 
 ## Formats a one-line memory overview ("RAM 15956/32686 MB (48%)"; "~" prefix when estimated).
 pub function format_mem(info: MemInfo) -> string
-    if info.is_known() == 0
+    if info.is_known() == false
         return "RAM unknown"
     end
     let mark = ""
-    if info.estimated == 1
+    if info.estimated == true
         mark = "~"
     end
     let total = info.total_mb()
@@ -162,7 +162,7 @@ pub function format_swap(info: MemInfo) -> string
         return "Swap none"
     end
     let mark = ""
-    if info.estimated == 1
+    if info.estimated == true
         mark = "~"
     end
     let total = info.swap_mb()
@@ -178,7 +178,7 @@ end
 ## Formats a one-line disk overview ("C:/ 120/256 GB (47%)").
 ## Percent derives from the documented free-vs-avail figure (quota-aware avail).
 pub function format_disk(usage: DiskUsage) -> string
-    if usage.is_known() == 0
+    if usage.is_known() == false
         return "{usage.path} unknown"
     end
     let total_g = usage.total_bytes / 1073741824
@@ -192,17 +192,17 @@ end
 
 ## Formats power status ("Battery 87% (AC)", "AC power", "Power unknown").
 pub function format_power(info: PowerInfo) -> string
-    if info.has_battery() == 1
+    if info.has_battery() == true
         let pct = info.battery_percent
-        if info.on_ac == 1
+        if info.on_ac == true
             return "Battery {pct}% (AC)"
         end
-        if info.on_ac == 0
+        if info.on_ac == false
             return "Battery {pct}% (discharging)"
         end
         return "Battery {pct}% (power source unknown)"
     end
-    if info.is_on_ac() == 1
+    if info.is_on_ac() == true
         return "AC power"
     end
     return "Power unknown"
@@ -239,9 +239,9 @@ pub function format_net(nic: NetInterface) -> string
     if len(nic.mac) > 0
         s = s + " " + nic.mac
     end
-    if nic.is_loopback == 1
+    if nic.is_loopback == true
         s = s + " [loopback]"
-    elif nic.is_up == 1
+    elif nic.is_up == true
         s = s + " [up]"
     else
         s = s + " [down]"

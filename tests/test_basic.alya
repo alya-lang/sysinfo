@@ -58,7 +58,7 @@ function main()
     runner_assert_true(r, avail <= total, "available RAM does not exceed total RAM")
 
     let mem = pkg::mem_info()
-    runner_assert_eq(r, mem.is_known(), 1, "mem_info is known")
+    runner_assert_eq(r, mem.is_known(), true, "mem_info is known")
     runner_assert_true(r, mem.total_mb() > 0, "total_mb is positive")
     runner_assert_true(r, mem.used_percent() >= 0, "used_percent is non-negative")
     runner_assert_true(r, mem.used_percent() <= 100, "used_percent does not exceed 100")
@@ -67,7 +67,7 @@ function main()
     # 4. Disk
     # ═══════════════════════════════════════════════════════════
     let du = pkg::disk_usage()
-    runner_assert_eq(r, du.is_known(), 1, "disk_usage is known for default path")
+    runner_assert_eq(r, du.is_known(), true, "disk_usage is known for default path")
     runner_assert_true(r, du.total_bytes > 0, "disk total is positive")
     runner_assert_true(r, du.free_bytes >= 0, "disk free is non-negative")
     runner_assert_true(r, du.free_bytes <= du.total_bytes, "disk free does not exceed total")
@@ -113,7 +113,7 @@ function main()
     # ═══════════════════════════════════════════════════════════
     runner_assert_true(r, len(pkg::kernel()) > 0, "kernel() returns non-empty release")
     let el = pkg::elevated()
-    runner_assert_true(r, el == 0 or el == 1, "elevated() returns 0 or 1")
+    runner_assert_true(r, el == false or el == true, "elevated() returns 0 or 1")
     let is_linux = pkg::os_name() == "linux"
     if is_linux
         runner_assert_true(r, len(pkg::distro_id()) > 0, "distro_id is non-empty on Linux")
@@ -150,23 +150,23 @@ function main()
     runner_assert_true(r, len(first_vol.path) > 0, "first volume has a mount path")
     runner_assert_true(r, first_vol.total_bytes > 0, "first volume total is positive")
     runner_assert_eq(r, pkg::mount_count(), len(vols), "mount_count matches volumes length")
-    runner_assert_true(r, pkg::disk_usage("/no/such/path/xyz").is_known() == 0, "unknown path is not known")
+    runner_assert_true(r, pkg::disk_usage("/no/such/path/xyz").is_known() == false, "unknown path is not known")
     let not_macos = pkg::os_name() == "windows" or pkg::os_name() == "linux"
     if not_macos
         runner_assert_true(r, len(du.fstype) > 0, "fstype is known on Windows/Linux")
     end
     if pkg::os_name() == "windows"
         runner_assert_str_eq(r, pkg::disk_usage("C:\\").path, "C:/", "backslash input normalized to slashes")
-        let bad_sep = 0
+        let bad_sep = false
         let vi = 0
         while vi < len(vols)
             let vv: DiskUsage = vols[vi]
             if index_of(vv.path, "\\") >= 0
-                bad_sep = 1
+                bad_sep = true
             end
             vi += 1
         end
-        runner_assert_eq(r, bad_sep, 0, "volume paths use forward slashes")
+        runner_assert_eq(r, bad_sep, false, "volume paths use forward slashes")
     end
 
     # ═══════════════════════════════════════════════════════════
@@ -180,7 +180,7 @@ function main()
         runner_assert_true(r, pkg::load_avg_1() < 0.0, "load average is unavailable on Windows")
         runner_assert_true(r, pkg::load_avg_5() < 0.0, "load 5min is unavailable on Windows")
         runner_assert_true(r, pkg::load_avg_15() < 0.0, "load 15min is unavailable on Windows")
-        runner_assert_eq(r, pkg::load_is_known(), 0, "load is not known on Windows")
+        runner_assert_eq(r, pkg::load_is_known(), false, "load is not known on Windows")
     else
         runner_assert_true(r, pkg::load_avg_1() >= 0.0, "load_avg_1 is non-negative on POSIX")
         runner_assert_true(r, pkg::load_avg_5() >= 0.0, "load_avg_5 is non-negative on POSIX")
@@ -235,8 +235,8 @@ function main()
     runner_assert_str_eq(r, pkg::tz_iana("Europe/Istanbul"), "Europe/Istanbul", "tz_iana passes IANA through")
     @cfg(feature = "timezone")
     runner_assert_str_eq(r, pkg::tz_iana("No Such Zone"), "", "tz_iana unknown is empty")
-    runner_assert_true(r, pkg::mem_estimated() == 0 or pkg::mem_estimated() == 1, "mem_estimated is 0 or 1")
-    runner_assert_true(r, pkg::env_truncated() == 0 or pkg::env_truncated() == 1, "env_truncated is 0 or 1")
+    runner_assert_true(r, pkg::mem_estimated() == false or pkg::mem_estimated() == true, "mem_estimated is 0 or 1")
+    runner_assert_true(r, pkg::env_truncated() == false or pkg::env_truncated() == true, "env_truncated is 0 or 1")
     runner_assert_true(r, len(pkg::host_user()) > 0, "host_user returns non-empty string")
     @cfg(feature = "timezone")
     let tz = pkg::tz_info()
@@ -312,7 +312,7 @@ function power_check(r)
     runner_assert_true(r, ac >= -1, "on_ac returns -1, 0 or 1")
     runner_assert_true(r, ac <= 1, "on_ac does not exceed 1")
     let pwr = pkg::power_info()
-    runner_assert_true(r, pwr.has_battery() == 0 or pwr.has_battery() == 1, "has_battery returns 0 or 1")
+    runner_assert_true(r, pwr.has_battery() == false or pwr.has_battery() == true, "has_battery returns 0 or 1")
     runner_assert_true(r, len(pkg::format_power(pwr)) > 0, "format_power returns non-empty string")
 end
 

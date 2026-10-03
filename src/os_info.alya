@@ -49,25 +49,25 @@ end
 ## Returns 1 on Windows, else 0.
 pub function os_is_windows() -> int
     if target_os() == "windows"
-        return 1
+        return true
     end
-    return 0
+    return false
 end
 
 ## Returns 1 on Linux, else 0.
 pub function os_is_linux() -> int
     if target_os() == "linux"
-        return 1
+        return true
     end
-    return 0
+    return false
 end
 
 ## Returns 1 on macOS, else 0.
 pub function os_is_macos() -> int
     if target_os() == "macos"
-        return 1
+        return true
     end
-    return 0
+    return false
 end
 
 ## Collects the current OS details into an OsInfo record.
