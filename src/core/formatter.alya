@@ -105,8 +105,8 @@ pub function format_unix_date(ts: int) -> string
     let d = doy - (153 * mp + 2) / 5 + 1
     let m = mp + 3
     if m > 12
-        m = m - 12
-        y = y + 1
+        m -= 12
+        y += 1
     end
     return "{y}-{two_digits(m)}-{two_digits(d)} {two_digits(hh)}:{two_digits(mm)} UTC"
 end
@@ -231,20 +231,20 @@ end
 pub function format_net(nic: NetInterface) -> string
     let s = nic.name
     if len(nic.ipv4) > 0
-        s = s + " " + nic.ipv4
+        s += " " + nic.ipv4
     end
     if len(nic.ipv6) > 0
-        s = s + " " + nic.ipv6
+        s += " " + nic.ipv6
     end
     if len(nic.mac) > 0
-        s = s + " " + nic.mac
+        s += " " + nic.mac
     end
     if nic.is_loopback == true
-        s = s + " [loopback]"
+        s += " [loopback]"
     elif nic.is_up == true
-        s = s + " [up]"
+        s += " [up]"
     else
-        s = s + " [down]"
+        s += " [down]"
     end
     return s
 end
@@ -276,13 +276,13 @@ end
 ## Formats a detailed multi-line system report (one section per line).
 pub function format_system_details(info: SystemInfo) -> string
     let s = "OS:      {info.os.version} [{info.os.arch}] (kernel {info.os.kernel})"
-    s = s + "\nCPU:     {format_cpu(info.cpu)}"
-    s = s + "\nMemory:  {format_mem(info.mem)}"
-    s = s + "\nDisk:    {format_disk(info.disk)}"
-    s = s + "\nHost:    {info.host.hostname} (user {info.host.username})"
-    s = s + "\nTime:    {info.tz.name} ({format_utc_offset(info.tz.offset_min)}), up {format_duration(info.uptime_sec)}"
-    s = s + "\nPower:   {format_power(info.power)}"
-    s = s + "\nProc:    {info.proc.pid} {info.proc.exe}"
-    s = s + "\nLocale:  {info.locale}"
+    s += "\nCPU:     {format_cpu(info.cpu)}"
+    s += "\nMemory:  {format_mem(info.mem)}"
+    s += "\nDisk:    {format_disk(info.disk)}"
+    s += "\nHost:    {info.host.hostname} (user {info.host.username})"
+    s += "\nTime:    {info.tz.name} ({format_utc_offset(info.tz.offset_min)}), up {format_duration(info.uptime_sec)}"
+    s += "\nPower:   {format_power(info.power)}"
+    s += "\nProc:    {info.proc.pid} {info.proc.exe}"
+    s += "\nLocale:  {info.locale}"
     return s
 end
