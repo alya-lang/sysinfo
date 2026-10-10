@@ -1,7 +1,7 @@
 [package]
 name = "sysinfo"
 version = "0.1.0"
-alya-version = "0.0.19"
+alya-version = "0.0.20"
 entry = "src/lib.alya"
 description = "Cross-platform system information: OS, CPU, memory, disk, host, timezone, power, process, env, load, and locale for Alya"
 authors = ["Alya Language Contributors <https://github.com/alya-lang>"]

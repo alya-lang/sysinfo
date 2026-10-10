@@ -90,6 +90,27 @@ pub function details() -> string
     return format_system_details(system_info())
 end
 
+## Fallback stub for `system_info` when any of the `timezone`, `power`,
+## `locale` or `net` features is disabled (needs the full quartet).
+@cfg(any(not(feature = "timezone"), not(feature = "power"), not(feature = "locale"), not(feature = "net")))
+pub function system_info() -> SystemInfo
+    throw "snapshot features are disabled (rebuild with default features or --features timezone,power,locale,net)"
+end
+
+## Fallback stub for `summary` when any of the `timezone`, `power`,
+## `locale` or `net` features is disabled (needs the full quartet).
+@cfg(any(not(feature = "timezone"), not(feature = "power"), not(feature = "locale"), not(feature = "net")))
+pub function summary() -> string
+    throw "snapshot features are disabled (rebuild with default features or --features timezone,power,locale,net)"
+end
+
+## Fallback stub for `details` when any of the `timezone`, `power`,
+## `locale` or `net` features is disabled (needs the full quartet).
+@cfg(any(not(feature = "timezone"), not(feature = "power"), not(feature = "locale"), not(feature = "net")))
+pub function details() -> string
+    throw "snapshot features are disabled (rebuild with default features or --features timezone,power,locale,net)"
+end
+
 # ───────────────────────────────────────────────────────────────
 # OS / CPU / Memory / Disk Facade
 # ───────────────────────────────────────────────────────────────
@@ -136,6 +157,12 @@ pub function battery() -> int
     return battery_percent()
 end
 
+## Fallback stub for `battery` when the `power` feature is disabled.
+@cfg(not(feature = "power"))
+pub function battery() -> int
+    throw "power feature is disabled (rebuild with default features or --features power)"
+end
+
 ## Returns the current executable path ("" when unavailable).
 pub function exe_path() -> string
     return proc_exe()
@@ -170,6 +197,7 @@ end
 # System Locale Facade (native API + env fallback, see locale.alya)
 # ───────────────────────────────────────────────────────────────
 
+# alya-lint: disable unused-param
 ## Returns the best system locale tag (e.g. "tr-TR", "en-US"), "en" fallback.
 ##
 ## Requires the `locale` feature (default-on).
@@ -177,6 +205,13 @@ end
 pub function system_lang(default_lang: string = "en") -> string
     return system_locale_tag(default_lang)
 end
+
+## Fallback stub for `system_lang` when the `locale` feature is disabled.
+@cfg(not(feature = "locale"))
+pub function system_lang(default_lang: string = "en") -> string
+    throw "locale feature is disabled (rebuild with default features or --features locale)"
+end
+# alya-lint: enable unused-param
 
 ## Returns the locale fallback chain (e.g. ["tr-TR", "tr", "en"]).
 ##
@@ -186,6 +221,13 @@ pub function system_langs() -> array
     return system_locale_chain()
 end
 
+## Fallback stub for `system_langs` when the `locale` feature is disabled.
+@cfg(not(feature = "locale"))
+pub function system_langs() -> array
+    throw "locale feature is disabled (rebuild with default features or --features locale)"
+end
+
+# alya-lint: disable unused-param
 ## Normalizes a raw locale string to BCP-47-ish form ("tr_TR.UTF-8" -> "tr-TR").
 ##
 ## Requires the `locale` feature (default-on).
@@ -194,12 +236,25 @@ pub function normalize_locale(raw) -> string
     return normalize_locale_tag(raw)
 end
 
+## Fallback stub for `normalize_locale` when the `locale` feature is disabled.
+@cfg(not(feature = "locale"))
+pub function normalize_locale(raw) -> string
+    throw "locale feature is disabled (rebuild with default features or --features locale)"
+end
+# alya-lint: enable unused-param
+
 ## Returns LocaleInfo for the current system locale.
 ##
 ## Requires the `locale` feature (default-on).
 @cfg(feature = "locale")
 pub function locale_info() -> LocaleInfo
     return system_locale_info()
+end
+
+## Fallback stub for `locale_info` when the `locale` feature is disabled.
+@cfg(not(feature = "locale"))
+pub function locale_info() -> LocaleInfo
+    throw "locale feature is disabled (rebuild with default features or --features locale)"
 end
 
 # ───────────────────────────────────────────────────────────────
